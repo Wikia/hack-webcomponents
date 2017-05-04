@@ -32,32 +32,28 @@ customElements.define('global-navigation', class extends skate.Component {
 		</a>;
 	}
 
-    globalNavOnclick1(event) {
-        alert("dupa");
-    }
+	globalNavOnclick(event) {
+		const $eventTarget = $(event.target),
+			$clickedToggle = $eventTarget.closest('.wds-dropdown__toggle'),
+			$clickedDropdown = $eventTarget.closest('.wds-dropdown');
 
-    globalNavOnclick(event) {
-        var $eventTarget = $(event.target),
-            $clickedToggle = $eventTarget.closest('.wds-dropdown__toggle'),
-            $clickedDropdown = $eventTarget.closest('.wds-dropdown');
+		if ($clickedToggle.length) {
+			$clickedDropdown.toggleClass('wds-is-active');
 
-        if ($clickedToggle.length) {
-            $clickedDropdown.toggleClass('wds-is-active');
+			if ($clickedDropdown.hasClass('wds-is-active')) {
+				$clickedDropdown.trigger('wds-dropdown-open');
+			}
+		}
 
-            if ($clickedDropdown.hasClass('wds-is-active')) {
-                $clickedDropdown.trigger('wds-dropdown-open');
-            }
-        }
+		$('.wds-dropdown.wds-is-active').not($clickedDropdown)
+		.removeClass('wds-is-active')
+		.trigger('wds-dropdown-close');
 
-        $('.wds-dropdown.wds-is-active').not($clickedDropdown)
-            .removeClass('wds-is-active')
-            .trigger('wds-dropdown-close');
-
-        $('.wds-global-navigation').toggleClass(
-            'wds-dropdown-is-open',
-            Boolean($clickedDropdown.hasClass('wds-is-active'))
-        );
-    };
+		$('.wds-global-navigation').toggleClass(
+			'wds-dropdown-is-open',
+			Boolean($clickedDropdown.hasClass('wds-is-active'))
+		);
+	};
 
 	renderCallback () {
 		return <div class="wds-global-navigation">
