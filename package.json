@@ -1,0 +1,30 @@
+{
+  "name": "skatetest",
+  "version": "1.0.0",
+  "description": "",
+  "main": "gulpfile.js",
+  "dependencies": {
+    "skatejs": "^4.6.7",
+    "skatejs-web-components": "0.0.1"
+  },
+  "devDependencies": {
+    "babel-preset-es2015": "^6.24.1",
+    "gulp": "^3.9.1",
+    "gulp-babel": "^6.1.2",
+    "skatejs": "^4.6.7",
+    "skatejs-web-components": "0.0.1"
+  },
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Wikia/hack-webcomponents.git"
+  },
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/Wikia/hack-webcomponents/issues"
+  },
+  "homepage": "https://github.com/Wikia/hack-webcomponents#readme"
+}
