@@ -1,6 +1,5 @@
 import 'skatejs-web-components';
 import * as skate from 'skatejs';
-import $ from 'jquery';
 
 customElements.define('global-navigation', class extends skate.Component {
 	static get props () {
