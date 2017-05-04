@@ -1,7 +1,7 @@
 import 'skatejs-web-components';
 import * as skate from 'skatejs';
 
-customElements.define('wds-global-navigation', class extends skate.Component {
+customElements.define('global-navigation', class extends skate.Component {
 	static get props () {
 		return {
 			model: {
