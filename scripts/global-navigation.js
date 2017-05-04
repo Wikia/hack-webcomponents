@@ -58,8 +58,59 @@ customElements.define('global-navigation', class extends skate.Component {
 		}
 	}
 
+	userMenu(model) {
+		if (model.user) {
+			return this.userMenuLoggedIn(model.user);
+		} else if (model.anon) {
+			return this.userMenuAnon(model.anon);
+		}
+	}
+
+	userMenuAnon(model) {
+		// TODO make this.dropdown() generic enough to use here
+		const toggleHeaderSvg = <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" class="wds-icon wds-icon-small wds-icon" id="wds-icons-user"><path d="M12 14c3.309 0 6-2.691 6-6V6c0-3.309-2.691-6-6-6S6 2.691 6 6v2c0 3.309 2.691 6 6 6zm5 2H7c-3.86 0-7 3.14-7 7a1 1 0 0 0 1 1h22a1 1 0 0 0 1-1c0-3.86-3.14-7-7-7z" fill-rule="evenodd"></path></svg>;
+		const toggleHeaderSpan = <span class="wds-global-navigation__account-menu-caption">{this.i18n(model.header.title.key)}</span>;
+		const links = model.links.map((link) => this.linkAuthentication(link));
+
+		return <div class="wds-dropdown wds-global-navigation__account-menu">
+			<div class="wds-global-navigation__dropdown-toggle wds-dropdown__toggle">
+				{toggleHeaderSvg}
+				{toggleHeaderSpan}
+				<svg class="wds-icon wds-icon-tiny wds-dropdown__toggle-chevron" width="12" height="12" viewBox="0 0 12 12" xmlns="http://www.w3.org/2000/svg"><path d="M1 3h10L6 9z"/></svg>
+			</div>
+			<div class="wds-global-navigation__dropdown-content wds-dropdown__content wds-is-right-aligned">
+				<ul class="wds-list wds-has-lines-between">{links}</ul>
+			</div>
+		</div>;
+	}
+
+	userMenuLoggedIn(model) {
+		return this.links(model, 'user-menu', true);
+	}
+
 	link(model) {
 		return <a class="wds-global-navigation__link">{this.i18n(model.title.key)}</a>;
+	}
+
+	linkAuthentication(model) {
+		const classMap = {
+			'global-navigation-anon-sign-in': 'wds-button wds-is-full-width',
+			'global-navigation-anon-register': 'wds-button wds-is-full-width wds-is-secondary',
+			'global-navigation-user-sign-out': 'wds-global-navigation__dropdown-link'
+		};
+		const classNames = classMap[model.title.key];
+		const subtitle = (model.subtitle) ?
+			<div class="wds-global-navigation__account-menu-dropdown-caption">{this.i18n(model.subtitle.key)}</div> :
+			'';
+		let link;
+
+		if (model.title.key === 'global-navigation-user-sign-out') {
+			link = <div class={classNames}>TODO: signout</div>;
+		} else {
+			link = <a href={model.href} rel="nofollow" id={model.title.key} class={classNames}>{this.i18n(model.title.key)}</a>;
+		}
+
+		return <div>{subtitle}{link}</div>;
 	}
 
 	linkBranded(model) {
@@ -70,30 +121,14 @@ customElements.define('global-navigation', class extends skate.Component {
 		return <a class={classNames.join(' ')}>{this.i18n(model.title.key)}</a>;
 	}
 
-	dropdownToggleTitle(model) {
-		if (model.header.type === 'avatar') {
-			return model.header.username.value;
-		}
-	}
-
-	dropdownToggleHeader(model) {
-		if (model.header.type === 'avatar') {
-			return <img class="wds-avatar" src={model.header.url} alt={model.header.username.value} />;
-		} else {
-			return <span>{this.i18n(model.header.title.key)}</span>;
-		}
-	}
-
-	// TODO support rightAligned
-	dropdown(model, type, rightAligned = false) {
+	dropdown(model, type) {
 		const classNames = [
-				`wds-global-navigation__wikis-menu`,
 				`wds-dropdown`,
 				`wds-global-navigation__${type}`
 			],
 			links = model.links.map((link) => {
 				if (link.type === 'link-authentication') {
-					// TODO
+					return <li>{this.linkAuthentication(link)}</li>;
 				} else {
 					return <li>
 						<a class="wds-global-navigation__dropdown-link">{this.i18n(link.title.key)}</a>
@@ -112,6 +147,20 @@ customElements.define('global-navigation', class extends skate.Component {
 				</ul>
 			</div>
 		</div>;
+	}
+
+	dropdownToggleTitle(model) {
+		if (model.header.type === 'avatar') {
+			return model.header.username.value;
+		}
+	}
+
+	dropdownToggleHeader(model) {
+		if (model.header.type === 'avatar') {
+			return <img class="wds-avatar" src={model.header.url} alt={model.header.username.value} />;
+		} else {
+			return <span>{this.i18n(model.header.title.key)}</span>;
+		}
 	}
 
 	activateSearch() {
@@ -219,24 +268,7 @@ customElements.define('global-navigation', class extends skate.Component {
 						</div>
 					</form>
 				</div>
-				<div class="wds-global-navigation__account-menu wds-dropdown">
-					<div class="wds-global-navigation__dropdown-toggle wds-dropdown__toggle">
-						<svg class="wds-icon wds-icon-small" width="24" height="24" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M12 14c3.309 0 6-2.691 6-6V6c0-3.309-2.691-6-6-6S6 2.691 6 6v2c0 3.309 2.691 6 6 6zm5 2H7c-3.86 0-7 3.14-7 7a1 1 0 0 0 1 1h22a1 1 0 0 0 1-1c0-3.86-3.14-7-7-7z" fill-rule="evenodd"/></svg>
-						<span class="wds-global-navigation__account-menu-caption">My Account</span>
-						<svg class="wds-icon wds-icon-tiny wds-dropdown__toggle-chevron" width="12" height="12" viewBox="0 0 12 12" xmlns="http://www.w3.org/2000/svg"><path d="M1 3h10L6 9z"/></svg>
-					</div>
-					<div class="wds-global-navigation__dropdown-content wds-dropdown__content wds-is-right-aligned">
-						<ul class="wds-has-lines-between wds-list">
-							<li>
-								<a rel="nofollow" href="" class="wds-button wds-is-full-width">Sign In</a>
-							</li>
-							<li>
-								<div class="wds-global-navigation__account-menu-dropdown-caption">Don't have an account?</div>
-								<a rel="nofollow" href="" class="wds-button wds-is-full-width wds-is-secondary">Register</a>
-							</li>
-						</ul>
-					</div>
-				</div>
+				{this.userMenu(this.model)}
 				<div class="wds-global-navigation__start-a-wiki">
 					<a class="wds-global-navigation__start-a-wiki-button wds-button wds-is-squished wds-is-secondary" href="http://www.wikia.com/Special:CreateNewWiki">
 						<span class="wds-global-navigation__start-a-wiki-caption">Start a Wiki</span>
