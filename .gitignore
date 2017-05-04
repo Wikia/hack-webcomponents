@@ -6,4 +6,4 @@
 
 npm-debug.log
 .idea/
-bundle.js
+dist/

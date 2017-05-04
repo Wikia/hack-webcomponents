@@ -16,8 +16,8 @@
     "watchify": "^3.9.0"
   },
   "scripts": {
-    "build": "browserify scripts/simple.js -o bundle.js -t [ babelify ]",
-    "watch": "watchify scripts/simple.js -o bundle.js -t [ babelify ]",
+    "build": "browserify scripts/global-navigation.js -o dist/global-navigation.js -t [ babelify ]",
+    "watch": "watchify scripts/global-navigation.js -o dist/global-navigation.js -t [ babelify ]",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "repository": {
