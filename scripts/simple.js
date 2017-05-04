@@ -4,9 +4,15 @@ import * as skate from 'skatejs';
 customElements.define('wds-global-navigation', class extends skate.Component {
 	static get props () {
 		return {
-			name: { attribute: true }
+			model: {
+				attribute: true,
+				coerce(value) {
+					return JSON.parse(value);
+				}
+			}
 		};
 	}
+
 	renderCallback () {
 		return <div class="wds-global-navigation">
 			<style>@import 'http://wikiadesignsystem.com/assets/design-system.css'</style>
