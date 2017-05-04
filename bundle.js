@@ -1,1073 +1,4 @@
 (function e(t,n,r){function s(o,u){if(!n[o]){if(!t[o]){var a=typeof require=="function"&&require;if(!u&&a)return a(o,!0);if(i)return i(o,!0);var f=new Error("Cannot find module '"+o+"'");throw f.code="MODULE_NOT_FOUND",f}var l=n[o]={exports:{}};t[o][0].call(l.exports,function(e){var n=t[o][1][e];return s(n?n:e)},l,l.exports,e,t,n,r)}return n[o].exports}var i=typeof require=="function"&&require;for(var o=0;o<r.length;o++)s(r[o]);return s})({1:[function(require,module,exports){
-
-/**
- * @license
- * Copyright 2015 The Incremental DOM Authors. All Rights Reserved.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *      http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS-IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
-
-'use strict';
-
-/**
- * Copyright 2015 The Incremental DOM Authors. All Rights Reserved.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *      http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS-IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
-
-/**
- * A cached reference to the hasOwnProperty function.
- */
-var hasOwnProperty = Object.prototype.hasOwnProperty;
-
-/**
- * A cached reference to the create function.
- */
-var create = Object.create;
-
-/**
- * Used to prevent property collisions between our "map" and its prototype.
- * @param {!Object<string, *>} map The map to check.
- * @param {string} property The property to check.
- * @return {boolean} Whether map has property.
- */
-var has = function (map, property) {
-  return hasOwnProperty.call(map, property);
-};
-
-/**
- * Creates an map object without a prototype.
- * @return {!Object}
- */
-var createMap = function () {
-  return create(null);
-};
-
-/**
- * Keeps track of information needed to perform diffs for a given DOM node.
- * @param {!string} nodeName
- * @param {?string=} key
- * @constructor
- */
-function NodeData(nodeName, key) {
-  /**
-   * The attributes and their values.
-   * @const {!Object<string, *>}
-   */
-  this.attrs = createMap();
-
-  /**
-   * An array of attribute name/value pairs, used for quickly diffing the
-   * incomming attributes to see if the DOM node's attributes need to be
-   * updated.
-   * @const {Array<*>}
-   */
-  this.attrsArr = [];
-
-  /**
-   * The incoming attributes for this Node, before they are updated.
-   * @const {!Object<string, *>}
-   */
-  this.newAttrs = createMap();
-
-  /**
-   * The key used to identify this node, used to preserve DOM nodes when they
-   * move within their parent.
-   * @const
-   */
-  this.key = key;
-
-  /**
-   * Keeps track of children within this node by their key.
-   * {?Object<string, !Element>}
-   */
-  this.keyMap = null;
-
-  /**
-   * Whether or not the keyMap is currently valid.
-   * {boolean}
-   */
-  this.keyMapValid = true;
-
-  /**
-   * The node name for this node.
-   * @const {string}
-   */
-  this.nodeName = nodeName;
-
-  /**
-   * @type {?string}
-   */
-  this.text = null;
-}
-
-/**
- * Initializes a NodeData object for a Node.
- *
- * @param {Node} node The node to initialize data for.
- * @param {string} nodeName The node name of node.
- * @param {?string=} key The key that identifies the node.
- * @return {!NodeData} The newly initialized data object
- */
-var initData = function (node, nodeName, key) {
-  var data = new NodeData(nodeName, key);
-  node['__incrementalDOMData'] = data;
-  return data;
-};
-
-/**
- * Retrieves the NodeData object for a Node, creating it if necessary.
- *
- * @param {Node} node The node to retrieve the data for.
- * @return {!NodeData} The NodeData for this Node.
- */
-var getData = function (node) {
-  var data = node['__incrementalDOMData'];
-
-  if (!data) {
-    var nodeName = node.nodeName.toLowerCase();
-    var key = null;
-
-    if (node instanceof Element) {
-      key = node.getAttribute('key');
-    }
-
-    data = initData(node, nodeName, key);
-  }
-
-  return data;
-};
-
-/**
- * Copyright 2015 The Incremental DOM Authors. All Rights Reserved.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *      http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS-IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
-
-/** @const */
-var symbols = {
-  default: '__default',
-
-  placeholder: '__placeholder'
-};
-
-/**
- * @param {string} name
- * @return {string|undefined} The namespace to use for the attribute.
- */
-var getNamespace = function (name) {
-  if (name.lastIndexOf('xml:', 0) === 0) {
-    return 'http://www.w3.org/XML/1998/namespace';
-  }
-
-  if (name.lastIndexOf('xlink:', 0) === 0) {
-    return 'http://www.w3.org/1999/xlink';
-  }
-};
-
-/**
- * Applies an attribute or property to a given Element. If the value is null
- * or undefined, it is removed from the Element. Otherwise, the value is set
- * as an attribute.
- * @param {!Element} el
- * @param {string} name The attribute's name.
- * @param {?(boolean|number|string)=} value The attribute's value.
- */
-var applyAttr = function (el, name, value) {
-  if (value == null) {
-    el.removeAttribute(name);
-  } else {
-    var attrNS = getNamespace(name);
-    if (attrNS) {
-      el.setAttributeNS(attrNS, name, value);
-    } else {
-      el.setAttribute(name, value);
-    }
-  }
-};
-
-/**
- * Applies a property to a given Element.
- * @param {!Element} el
- * @param {string} name The property's name.
- * @param {*} value The property's value.
- */
-var applyProp = function (el, name, value) {
-  el[name] = value;
-};
-
-/**
- * Applies a style to an Element. No vendor prefix expansion is done for
- * property names/values.
- * @param {!Element} el
- * @param {string} name The attribute's name.
- * @param {*} style The style to set. Either a string of css or an object
- *     containing property-value pairs.
- */
-var applyStyle = function (el, name, style) {
-  if (typeof style === 'string') {
-    el.style.cssText = style;
-  } else {
-    el.style.cssText = '';
-    var elStyle = el.style;
-    var obj = /** @type {!Object<string,string>} */style;
-
-    for (var prop in obj) {
-      if (has(obj, prop)) {
-        elStyle[prop] = obj[prop];
-      }
-    }
-  }
-};
-
-/**
- * Updates a single attribute on an Element.
- * @param {!Element} el
- * @param {string} name The attribute's name.
- * @param {*} value The attribute's value. If the value is an object or
- *     function it is set on the Element, otherwise, it is set as an HTML
- *     attribute.
- */
-var applyAttributeTyped = function (el, name, value) {
-  var type = typeof value;
-
-  if (type === 'object' || type === 'function') {
-    applyProp(el, name, value);
-  } else {
-    applyAttr(el, name, /** @type {?(boolean|number|string)} */value);
-  }
-};
-
-/**
- * Calls the appropriate attribute mutator for this attribute.
- * @param {!Element} el
- * @param {string} name The attribute's name.
- * @param {*} value The attribute's value.
- */
-var updateAttribute = function (el, name, value) {
-  var data = getData(el);
-  var attrs = data.attrs;
-
-  if (attrs[name] === value) {
-    return;
-  }
-
-  var mutator = attributes[name] || attributes[symbols.default];
-  mutator(el, name, value);
-
-  attrs[name] = value;
-};
-
-/**
- * A publicly mutable object to provide custom mutators for attributes.
- * @const {!Object<string, function(!Element, string, *)>}
- */
-var attributes = createMap();
-
-// Special generic mutator that's called for any attribute that does not
-// have a specific mutator.
-attributes[symbols.default] = applyAttributeTyped;
-
-attributes[symbols.placeholder] = function () {};
-
-attributes['style'] = applyStyle;
-
-/**
- * Gets the namespace to create an element (of a given tag) in.
- * @param {string} tag The tag to get the namespace for.
- * @param {?Node} parent
- * @return {?string} The namespace to create the tag in.
- */
-var getNamespaceForTag = function (tag, parent) {
-  if (tag === 'svg') {
-    return 'http://www.w3.org/2000/svg';
-  }
-
-  if (getData(parent).nodeName === 'foreignObject') {
-    return null;
-  }
-
-  return parent.namespaceURI;
-};
-
-/**
- * Creates an Element.
- * @param {Document} doc The document with which to create the Element.
- * @param {?Node} parent
- * @param {string} tag The tag for the Element.
- * @param {?string=} key A key to identify the Element.
- * @param {?Array<*>=} statics An array of attribute name/value pairs of the
- *     static attributes for the Element.
- * @return {!Element}
- */
-var createElement = function (doc, parent, tag, key, statics) {
-  var namespace = getNamespaceForTag(tag, parent);
-  var el = undefined;
-
-  if (namespace) {
-    el = doc.createElementNS(namespace, tag);
-  } else {
-    el = doc.createElement(tag);
-  }
-
-  initData(el, tag, key);
-
-  if (statics) {
-    for (var i = 0; i < statics.length; i += 2) {
-      updateAttribute(el, /** @type {!string}*/statics[i], statics[i + 1]);
-    }
-  }
-
-  return el;
-};
-
-/**
- * Creates a Text Node.
- * @param {Document} doc The document with which to create the Element.
- * @return {!Text}
- */
-var createText = function (doc) {
-  var node = doc.createTextNode('');
-  initData(node, '#text', null);
-  return node;
-};
-
-/**
- * Creates a mapping that can be used to look up children using a key.
- * @param {?Node} el
- * @return {!Object<string, !Element>} A mapping of keys to the children of the
- *     Element.
- */
-var createKeyMap = function (el) {
-  var map = createMap();
-  var child = el.firstElementChild;
-
-  while (child) {
-    var key = getData(child).key;
-
-    if (key) {
-      map[key] = child;
-    }
-
-    child = child.nextElementSibling;
-  }
-
-  return map;
-};
-
-/**
- * Retrieves the mapping of key to child node for a given Element, creating it
- * if necessary.
- * @param {?Node} el
- * @return {!Object<string, !Node>} A mapping of keys to child Elements
- */
-var getKeyMap = function (el) {
-  var data = getData(el);
-
-  if (!data.keyMap) {
-    data.keyMap = createKeyMap(el);
-  }
-
-  return data.keyMap;
-};
-
-/**
- * Retrieves a child from the parent with the given key.
- * @param {?Node} parent
- * @param {?string=} key
- * @return {?Node} The child corresponding to the key.
- */
-var getChild = function (parent, key) {
-  return key ? getKeyMap(parent)[key] : null;
-};
-
-/**
- * Registers an element as being a child. The parent will keep track of the
- * child using the key. The child can be retrieved using the same key using
- * getKeyMap. The provided key should be unique within the parent Element.
- * @param {?Node} parent The parent of child.
- * @param {string} key A key to identify the child with.
- * @param {!Node} child The child to register.
- */
-var registerChild = function (parent, key, child) {
-  getKeyMap(parent)[key] = child;
-};
-
-/**
- * Copyright 2015 The Incremental DOM Authors. All Rights Reserved.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *      http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS-IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
-
-/** @const */
-var notifications = {
-  /**
-   * Called after patch has compleated with any Nodes that have been created
-   * and added to the DOM.
-   * @type {?function(Array<!Node>)}
-   */
-  nodesCreated: null,
-
-  /**
-   * Called after patch has compleated with any Nodes that have been removed
-   * from the DOM.
-   * Note it's an applications responsibility to handle any childNodes.
-   * @type {?function(Array<!Node>)}
-   */
-  nodesDeleted: null
-};
-
-/**
- * Keeps track of the state of a patch.
- * @constructor
- */
-function Context() {
-  /**
-   * @type {(Array<!Node>|undefined)}
-   */
-  this.created = notifications.nodesCreated && [];
-
-  /**
-   * @type {(Array<!Node>|undefined)}
-   */
-  this.deleted = notifications.nodesDeleted && [];
-}
-
-/**
- * @param {!Node} node
- */
-Context.prototype.markCreated = function (node) {
-  if (this.created) {
-    this.created.push(node);
-  }
-};
-
-/**
- * @param {!Node} node
- */
-Context.prototype.markDeleted = function (node) {
-  if (this.deleted) {
-    this.deleted.push(node);
-  }
-};
-
-/**
- * Notifies about nodes that were created during the patch opearation.
- */
-Context.prototype.notifyChanges = function () {
-  if (this.created && this.created.length > 0) {
-    notifications.nodesCreated(this.created);
-  }
-
-  if (this.deleted && this.deleted.length > 0) {
-    notifications.nodesDeleted(this.deleted);
-  }
-};
-
-/**
-* Makes sure that keyed Element matches the tag name provided.
-* @param {!string} nodeName The nodeName of the node that is being matched.
-* @param {string=} tag The tag name of the Element.
-* @param {?string=} key The key of the Element.
-*/
-var assertKeyedTagMatches = function (nodeName, tag, key) {
-  if (nodeName !== tag) {
-    throw new Error('Was expecting node with key "' + key + '" to be a ' + tag + ', not a ' + nodeName + '.');
-  }
-};
-
-/** @type {?Context} */
-var context = null;
-
-/** @type {?Node} */
-var currentNode = null;
-
-/** @type {?Node} */
-var currentParent = null;
-
-/** @type {?Element|?DocumentFragment} */
-var root = null;
-
-/** @type {?Document} */
-var doc = null;
-
-/**
- * Returns a patcher function that sets up and restores a patch context,
- * running the run function with the provided data.
- * @param {function((!Element|!DocumentFragment),!function(T),T=)} run
- * @return {function((!Element|!DocumentFragment),!function(T),T=)}
- * @template T
- */
-var patchFactory = function (run) {
-  /**
-   * TODO(moz): These annotations won't be necessary once we switch to Closure
-   * Compiler's new type inference. Remove these once the switch is done.
-   *
-   * @param {(!Element|!DocumentFragment)} node
-   * @param {!function(T)} fn
-   * @param {T=} data
-   * @template T
-   */
-  var f = function (node, fn, data) {
-    var prevContext = context;
-    var prevRoot = root;
-    var prevDoc = doc;
-    var prevCurrentNode = currentNode;
-    var prevCurrentParent = currentParent;
-    var previousInAttributes = false;
-    var previousInSkip = false;
-
-    context = new Context();
-    root = node;
-    doc = node.ownerDocument;
-    currentParent = node.parentNode;
-
-    if ('production' !== 'production') {}
-
-    run(node, fn, data);
-
-    if ('production' !== 'production') {}
-
-    context.notifyChanges();
-
-    context = prevContext;
-    root = prevRoot;
-    doc = prevDoc;
-    currentNode = prevCurrentNode;
-    currentParent = prevCurrentParent;
-  };
-  return f;
-};
-
-/**
- * Patches the document starting at node with the provided function. This
- * function may be called during an existing patch operation.
- * @param {!Element|!DocumentFragment} node The Element or Document
- *     to patch.
- * @param {!function(T)} fn A function containing elementOpen/elementClose/etc.
- *     calls that describe the DOM.
- * @param {T=} data An argument passed to fn to represent DOM state.
- * @template T
- */
-var patchInner = patchFactory(function (node, fn, data) {
-  currentNode = node;
-
-  enterNode();
-  fn(data);
-  exitNode();
-
-  if ('production' !== 'production') {}
-});
-
-/**
- * Patches an Element with the the provided function. Exactly one top level
- * element call should be made corresponding to `node`.
- * @param {!Element} node The Element where the patch should start.
- * @param {!function(T)} fn A function containing elementOpen/elementClose/etc.
- *     calls that describe the DOM. This should have at most one top level
- *     element call.
- * @param {T=} data An argument passed to fn to represent DOM state.
- * @template T
- */
-var patchOuter = patchFactory(function (node, fn, data) {
-  currentNode = /** @type {!Element} */{ nextSibling: node };
-
-  fn(data);
-
-  if ('production' !== 'production') {}
-});
-
-/**
- * Checks whether or not the current node matches the specified nodeName and
- * key.
- *
- * @param {?string} nodeName The nodeName for this node.
- * @param {?string=} key An optional key that identifies a node.
- * @return {boolean} True if the node matches, false otherwise.
- */
-var matches = function (nodeName, key) {
-  var data = getData(currentNode);
-
-  // Key check is done using double equals as we want to treat a null key the
-  // same as undefined. This should be okay as the only values allowed are
-  // strings, null and undefined so the == semantics are not too weird.
-  return nodeName === data.nodeName && key == data.key;
-};
-
-/**
- * Aligns the virtual Element definition with the actual DOM, moving the
- * corresponding DOM node to the correct location or creating it if necessary.
- * @param {string} nodeName For an Element, this should be a valid tag string.
- *     For a Text, this should be #text.
- * @param {?string=} key The key used to identify this element.
- * @param {?Array<*>=} statics For an Element, this should be an array of
- *     name-value pairs.
- */
-var alignWithDOM = function (nodeName, key, statics) {
-  if (currentNode && matches(nodeName, key)) {
-    return;
-  }
-
-  var node = undefined;
-
-  // Check to see if the node has moved within the parent.
-  if (key) {
-    node = getChild(currentParent, key);
-    if (node && 'production' !== 'production') {
-      assertKeyedTagMatches(getData(node).nodeName, nodeName, key);
-    }
-  }
-
-  // Create the node if it doesn't exist.
-  if (!node) {
-    if (nodeName === '#text') {
-      node = createText(doc);
-    } else {
-      node = createElement(doc, currentParent, nodeName, key, statics);
-    }
-
-    if (key) {
-      registerChild(currentParent, key, node);
-    }
-
-    context.markCreated(node);
-  }
-
-  // If the node has a key, remove it from the DOM to prevent a large number
-  // of re-orders in the case that it moved far or was completely removed.
-  // Since we hold on to a reference through the keyMap, we can always add it
-  // back.
-  if (currentNode && getData(currentNode).key) {
-    currentParent.replaceChild(node, currentNode);
-    getData(currentParent).keyMapValid = false;
-  } else {
-    currentParent.insertBefore(node, currentNode);
-  }
-
-  currentNode = node;
-};
-
-/**
- * Clears out any unvisited Nodes, as the corresponding virtual element
- * functions were never called for them.
- */
-var clearUnvisitedDOM = function () {
-  var node = currentParent;
-  var data = getData(node);
-  var keyMap = data.keyMap;
-  var keyMapValid = data.keyMapValid;
-  var child = node.lastChild;
-  var key = undefined;
-
-  if (child === currentNode && keyMapValid) {
-    return;
-  }
-
-  if (data.attrs[symbols.placeholder] && node !== root) {
-    if ('production' !== 'production') {}
-    return;
-  }
-
-  while (child !== currentNode) {
-    node.removeChild(child);
-    context.markDeleted( /** @type {!Node}*/child);
-
-    key = getData(child).key;
-    if (key) {
-      delete keyMap[key];
-    }
-    child = node.lastChild;
-  }
-
-  // Clean the keyMap, removing any unusued keys.
-  if (!keyMapValid) {
-    for (key in keyMap) {
-      child = keyMap[key];
-      if (child.parentNode !== node) {
-        context.markDeleted(child);
-        delete keyMap[key];
-      }
-    }
-
-    data.keyMapValid = true;
-  }
-};
-
-/**
- * Changes to the first child of the current node.
- */
-var enterNode = function () {
-  currentParent = currentNode;
-  currentNode = null;
-};
-
-/**
- * Changes to the next sibling of the current node.
- */
-var nextNode = function () {
-  if (currentNode) {
-    currentNode = currentNode.nextSibling;
-  } else {
-    currentNode = currentParent.firstChild;
-  }
-};
-
-/**
- * Changes to the parent of the current node, removing any unvisited children.
- */
-var exitNode = function () {
-  clearUnvisitedDOM();
-
-  currentNode = currentParent;
-  currentParent = currentParent.parentNode;
-};
-
-/**
- * Makes sure that the current node is an Element with a matching tagName and
- * key.
- *
- * @param {string} tag The element's tag.
- * @param {?string=} key The key used to identify this element. This can be an
- *     empty string, but performance may be better if a unique value is used
- *     when iterating over an array of items.
- * @param {?Array<*>=} statics An array of attribute name/value pairs of the
- *     static attributes for the Element. These will only be set once when the
- *     Element is created.
- * @return {!Element} The corresponding Element.
- */
-var coreElementOpen = function (tag, key, statics) {
-  nextNode();
-  alignWithDOM(tag, key, statics);
-  enterNode();
-  return (/** @type {!Element} */currentParent
-  );
-};
-
-/**
- * Closes the currently open Element, removing any unvisited children if
- * necessary.
- *
- * @return {!Element} The corresponding Element.
- */
-var coreElementClose = function () {
-  if ('production' !== 'production') {}
-
-  exitNode();
-  return (/** @type {!Element} */currentNode
-  );
-};
-
-/**
- * Makes sure the current node is a Text node and creates a Text node if it is
- * not.
- *
- * @return {!Text} The corresponding Text Node.
- */
-var coreText = function () {
-  nextNode();
-  alignWithDOM('#text', null, null);
-  return (/** @type {!Text} */currentNode
-  );
-};
-
-/**
- * Gets the current Element being patched.
- * @return {!Element}
- */
-var currentElement = function () {
-  if ('production' !== 'production') {}
-  return (/** @type {!Element} */currentParent
-  );
-};
-
-/**
- * Skips the children in a subtree, allowing an Element to be closed without
- * clearing out the children.
- */
-var skip = function () {
-  if ('production' !== 'production') {}
-  currentNode = currentParent.lastChild;
-};
-
-/**
- * The offset in the virtual element declaration where the attributes are
- * specified.
- * @const
- */
-var ATTRIBUTES_OFFSET = 3;
-
-/**
- * Builds an array of arguments for use with elementOpenStart, attr and
- * elementOpenEnd.
- * @const {Array<*>}
- */
-var argsBuilder = [];
-
-/**
- * @param {string} tag The element's tag.
- * @param {?string=} key The key used to identify this element. This can be an
- *     empty string, but performance may be better if a unique value is used
- *     when iterating over an array of items.
- * @param {?Array<*>=} statics An array of attribute name/value pairs of the
- *     static attributes for the Element. These will only be set once when the
- *     Element is created.
- * @param {...*} const_args Attribute name/value pairs of the dynamic attributes
- *     for the Element.
- * @return {!Element} The corresponding Element.
- */
-var elementOpen = function (tag, key, statics, const_args) {
-  if ('production' !== 'production') {}
-
-  var node = coreElementOpen(tag, key, statics);
-  var data = getData(node);
-
-  /*
-   * Checks to see if one or more attributes have changed for a given Element.
-   * When no attributes have changed, this is much faster than checking each
-   * individual argument. When attributes have changed, the overhead of this is
-   * minimal.
-   */
-  var attrsArr = data.attrsArr;
-  var newAttrs = data.newAttrs;
-  var attrsChanged = false;
-  var i = ATTRIBUTES_OFFSET;
-  var j = 0;
-
-  for (; i < arguments.length; i += 1, j += 1) {
-    if (attrsArr[j] !== arguments[i]) {
-      attrsChanged = true;
-      break;
-    }
-  }
-
-  for (; i < arguments.length; i += 1, j += 1) {
-    attrsArr[j] = arguments[i];
-  }
-
-  if (j < attrsArr.length) {
-    attrsChanged = true;
-    attrsArr.length = j;
-  }
-
-  /*
-   * Actually perform the attribute update.
-   */
-  if (attrsChanged) {
-    for (i = ATTRIBUTES_OFFSET; i < arguments.length; i += 2) {
-      newAttrs[arguments[i]] = arguments[i + 1];
-    }
-
-    for (var _attr in newAttrs) {
-      updateAttribute(node, _attr, newAttrs[_attr]);
-      newAttrs[_attr] = undefined;
-    }
-  }
-
-  return node;
-};
-
-/**
- * Declares a virtual Element at the current location in the document. This
- * corresponds to an opening tag and a elementClose tag is required. This is
- * like elementOpen, but the attributes are defined using the attr function
- * rather than being passed as arguments. Must be folllowed by 0 or more calls
- * to attr, then a call to elementOpenEnd.
- * @param {string} tag The element's tag.
- * @param {?string=} key The key used to identify this element. This can be an
- *     empty string, but performance may be better if a unique value is used
- *     when iterating over an array of items.
- * @param {?Array<*>=} statics An array of attribute name/value pairs of the
- *     static attributes for the Element. These will only be set once when the
- *     Element is created.
- */
-var elementOpenStart = function (tag, key, statics) {
-  if ('production' !== 'production') {}
-
-  argsBuilder[0] = tag;
-  argsBuilder[1] = key;
-  argsBuilder[2] = statics;
-};
-
-/***
- * Defines a virtual attribute at this point of the DOM. This is only valid
- * when called between elementOpenStart and elementOpenEnd.
- *
- * @param {string} name
- * @param {*} value
- */
-var attr = function (name, value) {
-  if ('production' !== 'production') {}
-
-  argsBuilder.push(name, value);
-};
-
-/**
- * Closes an open tag started with elementOpenStart.
- * @return {!Element} The corresponding Element.
- */
-var elementOpenEnd = function () {
-  if ('production' !== 'production') {}
-
-  var node = elementOpen.apply(null, argsBuilder);
-  argsBuilder.length = 0;
-  return node;
-};
-
-/**
- * Closes an open virtual Element.
- *
- * @param {string} tag The element's tag.
- * @return {!Element} The corresponding Element.
- */
-var elementClose = function (tag) {
-  if ('production' !== 'production') {}
-
-  var node = coreElementClose();
-
-  if ('production' !== 'production') {}
-
-  return node;
-};
-
-/**
- * Declares a virtual Element at the current location in the document that has
- * no children.
- * @param {string} tag The element's tag.
- * @param {?string=} key The key used to identify this element. This can be an
- *     empty string, but performance may be better if a unique value is used
- *     when iterating over an array of items.
- * @param {?Array<*>=} statics An array of attribute name/value pairs of the
- *     static attributes for the Element. These will only be set once when the
- *     Element is created.
- * @param {...*} const_args Attribute name/value pairs of the dynamic attributes
- *     for the Element.
- * @return {!Element} The corresponding Element.
- */
-var elementVoid = function (tag, key, statics, const_args) {
-  elementOpen.apply(null, arguments);
-  return elementClose(tag);
-};
-
-/**
- * Declares a virtual Element at the current location in the document that is a
- * placeholder element. Children of this Element can be manually managed and
- * will not be cleared by the library.
- *
- * A key must be specified to make sure that this node is correctly preserved
- * across all conditionals.
- *
- * @param {string} tag The element's tag.
- * @param {string} key The key used to identify this element.
- * @param {?Array<*>=} statics An array of attribute name/value pairs of the
- *     static attributes for the Element. These will only be set once when the
- *     Element is created.
- * @param {...*} const_args Attribute name/value pairs of the dynamic attributes
- *     for the Element.
- * @return {!Element} The corresponding Element.
- */
-var elementPlaceholder = function (tag, key, statics, const_args) {
-  if ('production' !== 'production') {}
-
-  elementOpen.apply(null, arguments);
-  skip();
-  return elementClose(tag);
-};
-
-/**
- * Declares a virtual Text at this point in the document.
- *
- * @param {string|number|boolean} value The value of the Text.
- * @param {...(function((string|number|boolean)):string)} const_args
- *     Functions to format the value which are called only when the value has
- *     changed.
- * @return {!Text} The corresponding text node.
- */
-var text = function (value, const_args) {
-  if ('production' !== 'production') {}
-
-  var node = coreText();
-  var data = getData(node);
-
-  if (data.text !== value) {
-    data.text = /** @type {string} */value;
-
-    var formatted = value;
-    for (var i = 1; i < arguments.length; i += 1) {
-      /*
-       * Call the formatter function directly to prevent leaking arguments.
-       * https://github.com/google/incremental-dom/pull/204#issuecomment-178223574
-       */
-      var fn = arguments[i];
-      formatted = fn(formatted);
-    }
-
-    node.data = formatted;
-  }
-
-  return node;
-};
-
-exports.patch = patchInner;
-exports.patchInner = patchInner;
-exports.patchOuter = patchOuter;
-exports.currentElement = currentElement;
-exports.skip = skip;
-exports.elementVoid = elementVoid;
-exports.elementOpenStart = elementOpenStart;
-exports.elementOpenEnd = elementOpenEnd;
-exports.elementOpen = elementOpen;
-exports.elementClose = elementClose;
-exports.elementPlaceholder = elementPlaceholder;
-exports.text = text;
-exports.attr = attr;
-exports.symbols = symbols;
-exports.attributes = attributes;
-exports.applyAttr = applyAttr;
-exports.applyProp = applyProp;
-exports.notifications = notifications;
-
-
-},{}],2:[function(require,module,exports){
 (function webpackUniversalModuleDefinition(root, factory) {
 	if(typeof exports === 'object' && typeof module === 'object')
 		module.exports = factory();
@@ -12228,7 +11159,7 @@ return /******/ (function(modules) { // webpackBootstrap
 });
 ;
 
-},{}],3:[function(require,module,exports){
+},{}],2:[function(require,module,exports){
 (function webpackUniversalModuleDefinition(root, factory) {
 	if(typeof exports === 'object' && typeof module === 'object')
 		module.exports = factory(require("incremental-dom"));
@@ -14708,7 +13639,1076 @@ module.exports = __webpack_require__(15);
 /******/ ]);
 });
 
-},{"incremental-dom":1}],4:[function(require,module,exports){
+},{"incremental-dom":3}],3:[function(require,module,exports){
+
+/**
+ * @license
+ * Copyright 2015 The Incremental DOM Authors. All Rights Reserved.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS-IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+'use strict';
+
+/**
+ * Copyright 2015 The Incremental DOM Authors. All Rights Reserved.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS-IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+/**
+ * A cached reference to the hasOwnProperty function.
+ */
+var hasOwnProperty = Object.prototype.hasOwnProperty;
+
+/**
+ * A cached reference to the create function.
+ */
+var create = Object.create;
+
+/**
+ * Used to prevent property collisions between our "map" and its prototype.
+ * @param {!Object<string, *>} map The map to check.
+ * @param {string} property The property to check.
+ * @return {boolean} Whether map has property.
+ */
+var has = function (map, property) {
+  return hasOwnProperty.call(map, property);
+};
+
+/**
+ * Creates an map object without a prototype.
+ * @return {!Object}
+ */
+var createMap = function () {
+  return create(null);
+};
+
+/**
+ * Keeps track of information needed to perform diffs for a given DOM node.
+ * @param {!string} nodeName
+ * @param {?string=} key
+ * @constructor
+ */
+function NodeData(nodeName, key) {
+  /**
+   * The attributes and their values.
+   * @const {!Object<string, *>}
+   */
+  this.attrs = createMap();
+
+  /**
+   * An array of attribute name/value pairs, used for quickly diffing the
+   * incomming attributes to see if the DOM node's attributes need to be
+   * updated.
+   * @const {Array<*>}
+   */
+  this.attrsArr = [];
+
+  /**
+   * The incoming attributes for this Node, before they are updated.
+   * @const {!Object<string, *>}
+   */
+  this.newAttrs = createMap();
+
+  /**
+   * The key used to identify this node, used to preserve DOM nodes when they
+   * move within their parent.
+   * @const
+   */
+  this.key = key;
+
+  /**
+   * Keeps track of children within this node by their key.
+   * {?Object<string, !Element>}
+   */
+  this.keyMap = null;
+
+  /**
+   * Whether or not the keyMap is currently valid.
+   * {boolean}
+   */
+  this.keyMapValid = true;
+
+  /**
+   * The node name for this node.
+   * @const {string}
+   */
+  this.nodeName = nodeName;
+
+  /**
+   * @type {?string}
+   */
+  this.text = null;
+}
+
+/**
+ * Initializes a NodeData object for a Node.
+ *
+ * @param {Node} node The node to initialize data for.
+ * @param {string} nodeName The node name of node.
+ * @param {?string=} key The key that identifies the node.
+ * @return {!NodeData} The newly initialized data object
+ */
+var initData = function (node, nodeName, key) {
+  var data = new NodeData(nodeName, key);
+  node['__incrementalDOMData'] = data;
+  return data;
+};
+
+/**
+ * Retrieves the NodeData object for a Node, creating it if necessary.
+ *
+ * @param {Node} node The node to retrieve the data for.
+ * @return {!NodeData} The NodeData for this Node.
+ */
+var getData = function (node) {
+  var data = node['__incrementalDOMData'];
+
+  if (!data) {
+    var nodeName = node.nodeName.toLowerCase();
+    var key = null;
+
+    if (node instanceof Element) {
+      key = node.getAttribute('key');
+    }
+
+    data = initData(node, nodeName, key);
+  }
+
+  return data;
+};
+
+/**
+ * Copyright 2015 The Incremental DOM Authors. All Rights Reserved.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS-IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+/** @const */
+var symbols = {
+  default: '__default',
+
+  placeholder: '__placeholder'
+};
+
+/**
+ * @param {string} name
+ * @return {string|undefined} The namespace to use for the attribute.
+ */
+var getNamespace = function (name) {
+  if (name.lastIndexOf('xml:', 0) === 0) {
+    return 'http://www.w3.org/XML/1998/namespace';
+  }
+
+  if (name.lastIndexOf('xlink:', 0) === 0) {
+    return 'http://www.w3.org/1999/xlink';
+  }
+};
+
+/**
+ * Applies an attribute or property to a given Element. If the value is null
+ * or undefined, it is removed from the Element. Otherwise, the value is set
+ * as an attribute.
+ * @param {!Element} el
+ * @param {string} name The attribute's name.
+ * @param {?(boolean|number|string)=} value The attribute's value.
+ */
+var applyAttr = function (el, name, value) {
+  if (value == null) {
+    el.removeAttribute(name);
+  } else {
+    var attrNS = getNamespace(name);
+    if (attrNS) {
+      el.setAttributeNS(attrNS, name, value);
+    } else {
+      el.setAttribute(name, value);
+    }
+  }
+};
+
+/**
+ * Applies a property to a given Element.
+ * @param {!Element} el
+ * @param {string} name The property's name.
+ * @param {*} value The property's value.
+ */
+var applyProp = function (el, name, value) {
+  el[name] = value;
+};
+
+/**
+ * Applies a style to an Element. No vendor prefix expansion is done for
+ * property names/values.
+ * @param {!Element} el
+ * @param {string} name The attribute's name.
+ * @param {*} style The style to set. Either a string of css or an object
+ *     containing property-value pairs.
+ */
+var applyStyle = function (el, name, style) {
+  if (typeof style === 'string') {
+    el.style.cssText = style;
+  } else {
+    el.style.cssText = '';
+    var elStyle = el.style;
+    var obj = /** @type {!Object<string,string>} */style;
+
+    for (var prop in obj) {
+      if (has(obj, prop)) {
+        elStyle[prop] = obj[prop];
+      }
+    }
+  }
+};
+
+/**
+ * Updates a single attribute on an Element.
+ * @param {!Element} el
+ * @param {string} name The attribute's name.
+ * @param {*} value The attribute's value. If the value is an object or
+ *     function it is set on the Element, otherwise, it is set as an HTML
+ *     attribute.
+ */
+var applyAttributeTyped = function (el, name, value) {
+  var type = typeof value;
+
+  if (type === 'object' || type === 'function') {
+    applyProp(el, name, value);
+  } else {
+    applyAttr(el, name, /** @type {?(boolean|number|string)} */value);
+  }
+};
+
+/**
+ * Calls the appropriate attribute mutator for this attribute.
+ * @param {!Element} el
+ * @param {string} name The attribute's name.
+ * @param {*} value The attribute's value.
+ */
+var updateAttribute = function (el, name, value) {
+  var data = getData(el);
+  var attrs = data.attrs;
+
+  if (attrs[name] === value) {
+    return;
+  }
+
+  var mutator = attributes[name] || attributes[symbols.default];
+  mutator(el, name, value);
+
+  attrs[name] = value;
+};
+
+/**
+ * A publicly mutable object to provide custom mutators for attributes.
+ * @const {!Object<string, function(!Element, string, *)>}
+ */
+var attributes = createMap();
+
+// Special generic mutator that's called for any attribute that does not
+// have a specific mutator.
+attributes[symbols.default] = applyAttributeTyped;
+
+attributes[symbols.placeholder] = function () {};
+
+attributes['style'] = applyStyle;
+
+/**
+ * Gets the namespace to create an element (of a given tag) in.
+ * @param {string} tag The tag to get the namespace for.
+ * @param {?Node} parent
+ * @return {?string} The namespace to create the tag in.
+ */
+var getNamespaceForTag = function (tag, parent) {
+  if (tag === 'svg') {
+    return 'http://www.w3.org/2000/svg';
+  }
+
+  if (getData(parent).nodeName === 'foreignObject') {
+    return null;
+  }
+
+  return parent.namespaceURI;
+};
+
+/**
+ * Creates an Element.
+ * @param {Document} doc The document with which to create the Element.
+ * @param {?Node} parent
+ * @param {string} tag The tag for the Element.
+ * @param {?string=} key A key to identify the Element.
+ * @param {?Array<*>=} statics An array of attribute name/value pairs of the
+ *     static attributes for the Element.
+ * @return {!Element}
+ */
+var createElement = function (doc, parent, tag, key, statics) {
+  var namespace = getNamespaceForTag(tag, parent);
+  var el = undefined;
+
+  if (namespace) {
+    el = doc.createElementNS(namespace, tag);
+  } else {
+    el = doc.createElement(tag);
+  }
+
+  initData(el, tag, key);
+
+  if (statics) {
+    for (var i = 0; i < statics.length; i += 2) {
+      updateAttribute(el, /** @type {!string}*/statics[i], statics[i + 1]);
+    }
+  }
+
+  return el;
+};
+
+/**
+ * Creates a Text Node.
+ * @param {Document} doc The document with which to create the Element.
+ * @return {!Text}
+ */
+var createText = function (doc) {
+  var node = doc.createTextNode('');
+  initData(node, '#text', null);
+  return node;
+};
+
+/**
+ * Creates a mapping that can be used to look up children using a key.
+ * @param {?Node} el
+ * @return {!Object<string, !Element>} A mapping of keys to the children of the
+ *     Element.
+ */
+var createKeyMap = function (el) {
+  var map = createMap();
+  var child = el.firstElementChild;
+
+  while (child) {
+    var key = getData(child).key;
+
+    if (key) {
+      map[key] = child;
+    }
+
+    child = child.nextElementSibling;
+  }
+
+  return map;
+};
+
+/**
+ * Retrieves the mapping of key to child node for a given Element, creating it
+ * if necessary.
+ * @param {?Node} el
+ * @return {!Object<string, !Node>} A mapping of keys to child Elements
+ */
+var getKeyMap = function (el) {
+  var data = getData(el);
+
+  if (!data.keyMap) {
+    data.keyMap = createKeyMap(el);
+  }
+
+  return data.keyMap;
+};
+
+/**
+ * Retrieves a child from the parent with the given key.
+ * @param {?Node} parent
+ * @param {?string=} key
+ * @return {?Node} The child corresponding to the key.
+ */
+var getChild = function (parent, key) {
+  return key ? getKeyMap(parent)[key] : null;
+};
+
+/**
+ * Registers an element as being a child. The parent will keep track of the
+ * child using the key. The child can be retrieved using the same key using
+ * getKeyMap. The provided key should be unique within the parent Element.
+ * @param {?Node} parent The parent of child.
+ * @param {string} key A key to identify the child with.
+ * @param {!Node} child The child to register.
+ */
+var registerChild = function (parent, key, child) {
+  getKeyMap(parent)[key] = child;
+};
+
+/**
+ * Copyright 2015 The Incremental DOM Authors. All Rights Reserved.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS-IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+/** @const */
+var notifications = {
+  /**
+   * Called after patch has compleated with any Nodes that have been created
+   * and added to the DOM.
+   * @type {?function(Array<!Node>)}
+   */
+  nodesCreated: null,
+
+  /**
+   * Called after patch has compleated with any Nodes that have been removed
+   * from the DOM.
+   * Note it's an applications responsibility to handle any childNodes.
+   * @type {?function(Array<!Node>)}
+   */
+  nodesDeleted: null
+};
+
+/**
+ * Keeps track of the state of a patch.
+ * @constructor
+ */
+function Context() {
+  /**
+   * @type {(Array<!Node>|undefined)}
+   */
+  this.created = notifications.nodesCreated && [];
+
+  /**
+   * @type {(Array<!Node>|undefined)}
+   */
+  this.deleted = notifications.nodesDeleted && [];
+}
+
+/**
+ * @param {!Node} node
+ */
+Context.prototype.markCreated = function (node) {
+  if (this.created) {
+    this.created.push(node);
+  }
+};
+
+/**
+ * @param {!Node} node
+ */
+Context.prototype.markDeleted = function (node) {
+  if (this.deleted) {
+    this.deleted.push(node);
+  }
+};
+
+/**
+ * Notifies about nodes that were created during the patch opearation.
+ */
+Context.prototype.notifyChanges = function () {
+  if (this.created && this.created.length > 0) {
+    notifications.nodesCreated(this.created);
+  }
+
+  if (this.deleted && this.deleted.length > 0) {
+    notifications.nodesDeleted(this.deleted);
+  }
+};
+
+/**
+* Makes sure that keyed Element matches the tag name provided.
+* @param {!string} nodeName The nodeName of the node that is being matched.
+* @param {string=} tag The tag name of the Element.
+* @param {?string=} key The key of the Element.
+*/
+var assertKeyedTagMatches = function (nodeName, tag, key) {
+  if (nodeName !== tag) {
+    throw new Error('Was expecting node with key "' + key + '" to be a ' + tag + ', not a ' + nodeName + '.');
+  }
+};
+
+/** @type {?Context} */
+var context = null;
+
+/** @type {?Node} */
+var currentNode = null;
+
+/** @type {?Node} */
+var currentParent = null;
+
+/** @type {?Element|?DocumentFragment} */
+var root = null;
+
+/** @type {?Document} */
+var doc = null;
+
+/**
+ * Returns a patcher function that sets up and restores a patch context,
+ * running the run function with the provided data.
+ * @param {function((!Element|!DocumentFragment),!function(T),T=)} run
+ * @return {function((!Element|!DocumentFragment),!function(T),T=)}
+ * @template T
+ */
+var patchFactory = function (run) {
+  /**
+   * TODO(moz): These annotations won't be necessary once we switch to Closure
+   * Compiler's new type inference. Remove these once the switch is done.
+   *
+   * @param {(!Element|!DocumentFragment)} node
+   * @param {!function(T)} fn
+   * @param {T=} data
+   * @template T
+   */
+  var f = function (node, fn, data) {
+    var prevContext = context;
+    var prevRoot = root;
+    var prevDoc = doc;
+    var prevCurrentNode = currentNode;
+    var prevCurrentParent = currentParent;
+    var previousInAttributes = false;
+    var previousInSkip = false;
+
+    context = new Context();
+    root = node;
+    doc = node.ownerDocument;
+    currentParent = node.parentNode;
+
+    if ('production' !== 'production') {}
+
+    run(node, fn, data);
+
+    if ('production' !== 'production') {}
+
+    context.notifyChanges();
+
+    context = prevContext;
+    root = prevRoot;
+    doc = prevDoc;
+    currentNode = prevCurrentNode;
+    currentParent = prevCurrentParent;
+  };
+  return f;
+};
+
+/**
+ * Patches the document starting at node with the provided function. This
+ * function may be called during an existing patch operation.
+ * @param {!Element|!DocumentFragment} node The Element or Document
+ *     to patch.
+ * @param {!function(T)} fn A function containing elementOpen/elementClose/etc.
+ *     calls that describe the DOM.
+ * @param {T=} data An argument passed to fn to represent DOM state.
+ * @template T
+ */
+var patchInner = patchFactory(function (node, fn, data) {
+  currentNode = node;
+
+  enterNode();
+  fn(data);
+  exitNode();
+
+  if ('production' !== 'production') {}
+});
+
+/**
+ * Patches an Element with the the provided function. Exactly one top level
+ * element call should be made corresponding to `node`.
+ * @param {!Element} node The Element where the patch should start.
+ * @param {!function(T)} fn A function containing elementOpen/elementClose/etc.
+ *     calls that describe the DOM. This should have at most one top level
+ *     element call.
+ * @param {T=} data An argument passed to fn to represent DOM state.
+ * @template T
+ */
+var patchOuter = patchFactory(function (node, fn, data) {
+  currentNode = /** @type {!Element} */{ nextSibling: node };
+
+  fn(data);
+
+  if ('production' !== 'production') {}
+});
+
+/**
+ * Checks whether or not the current node matches the specified nodeName and
+ * key.
+ *
+ * @param {?string} nodeName The nodeName for this node.
+ * @param {?string=} key An optional key that identifies a node.
+ * @return {boolean} True if the node matches, false otherwise.
+ */
+var matches = function (nodeName, key) {
+  var data = getData(currentNode);
+
+  // Key check is done using double equals as we want to treat a null key the
+  // same as undefined. This should be okay as the only values allowed are
+  // strings, null and undefined so the == semantics are not too weird.
+  return nodeName === data.nodeName && key == data.key;
+};
+
+/**
+ * Aligns the virtual Element definition with the actual DOM, moving the
+ * corresponding DOM node to the correct location or creating it if necessary.
+ * @param {string} nodeName For an Element, this should be a valid tag string.
+ *     For a Text, this should be #text.
+ * @param {?string=} key The key used to identify this element.
+ * @param {?Array<*>=} statics For an Element, this should be an array of
+ *     name-value pairs.
+ */
+var alignWithDOM = function (nodeName, key, statics) {
+  if (currentNode && matches(nodeName, key)) {
+    return;
+  }
+
+  var node = undefined;
+
+  // Check to see if the node has moved within the parent.
+  if (key) {
+    node = getChild(currentParent, key);
+    if (node && 'production' !== 'production') {
+      assertKeyedTagMatches(getData(node).nodeName, nodeName, key);
+    }
+  }
+
+  // Create the node if it doesn't exist.
+  if (!node) {
+    if (nodeName === '#text') {
+      node = createText(doc);
+    } else {
+      node = createElement(doc, currentParent, nodeName, key, statics);
+    }
+
+    if (key) {
+      registerChild(currentParent, key, node);
+    }
+
+    context.markCreated(node);
+  }
+
+  // If the node has a key, remove it from the DOM to prevent a large number
+  // of re-orders in the case that it moved far or was completely removed.
+  // Since we hold on to a reference through the keyMap, we can always add it
+  // back.
+  if (currentNode && getData(currentNode).key) {
+    currentParent.replaceChild(node, currentNode);
+    getData(currentParent).keyMapValid = false;
+  } else {
+    currentParent.insertBefore(node, currentNode);
+  }
+
+  currentNode = node;
+};
+
+/**
+ * Clears out any unvisited Nodes, as the corresponding virtual element
+ * functions were never called for them.
+ */
+var clearUnvisitedDOM = function () {
+  var node = currentParent;
+  var data = getData(node);
+  var keyMap = data.keyMap;
+  var keyMapValid = data.keyMapValid;
+  var child = node.lastChild;
+  var key = undefined;
+
+  if (child === currentNode && keyMapValid) {
+    return;
+  }
+
+  if (data.attrs[symbols.placeholder] && node !== root) {
+    if ('production' !== 'production') {}
+    return;
+  }
+
+  while (child !== currentNode) {
+    node.removeChild(child);
+    context.markDeleted( /** @type {!Node}*/child);
+
+    key = getData(child).key;
+    if (key) {
+      delete keyMap[key];
+    }
+    child = node.lastChild;
+  }
+
+  // Clean the keyMap, removing any unusued keys.
+  if (!keyMapValid) {
+    for (key in keyMap) {
+      child = keyMap[key];
+      if (child.parentNode !== node) {
+        context.markDeleted(child);
+        delete keyMap[key];
+      }
+    }
+
+    data.keyMapValid = true;
+  }
+};
+
+/**
+ * Changes to the first child of the current node.
+ */
+var enterNode = function () {
+  currentParent = currentNode;
+  currentNode = null;
+};
+
+/**
+ * Changes to the next sibling of the current node.
+ */
+var nextNode = function () {
+  if (currentNode) {
+    currentNode = currentNode.nextSibling;
+  } else {
+    currentNode = currentParent.firstChild;
+  }
+};
+
+/**
+ * Changes to the parent of the current node, removing any unvisited children.
+ */
+var exitNode = function () {
+  clearUnvisitedDOM();
+
+  currentNode = currentParent;
+  currentParent = currentParent.parentNode;
+};
+
+/**
+ * Makes sure that the current node is an Element with a matching tagName and
+ * key.
+ *
+ * @param {string} tag The element's tag.
+ * @param {?string=} key The key used to identify this element. This can be an
+ *     empty string, but performance may be better if a unique value is used
+ *     when iterating over an array of items.
+ * @param {?Array<*>=} statics An array of attribute name/value pairs of the
+ *     static attributes for the Element. These will only be set once when the
+ *     Element is created.
+ * @return {!Element} The corresponding Element.
+ */
+var coreElementOpen = function (tag, key, statics) {
+  nextNode();
+  alignWithDOM(tag, key, statics);
+  enterNode();
+  return (/** @type {!Element} */currentParent
+  );
+};
+
+/**
+ * Closes the currently open Element, removing any unvisited children if
+ * necessary.
+ *
+ * @return {!Element} The corresponding Element.
+ */
+var coreElementClose = function () {
+  if ('production' !== 'production') {}
+
+  exitNode();
+  return (/** @type {!Element} */currentNode
+  );
+};
+
+/**
+ * Makes sure the current node is a Text node and creates a Text node if it is
+ * not.
+ *
+ * @return {!Text} The corresponding Text Node.
+ */
+var coreText = function () {
+  nextNode();
+  alignWithDOM('#text', null, null);
+  return (/** @type {!Text} */currentNode
+  );
+};
+
+/**
+ * Gets the current Element being patched.
+ * @return {!Element}
+ */
+var currentElement = function () {
+  if ('production' !== 'production') {}
+  return (/** @type {!Element} */currentParent
+  );
+};
+
+/**
+ * Skips the children in a subtree, allowing an Element to be closed without
+ * clearing out the children.
+ */
+var skip = function () {
+  if ('production' !== 'production') {}
+  currentNode = currentParent.lastChild;
+};
+
+/**
+ * The offset in the virtual element declaration where the attributes are
+ * specified.
+ * @const
+ */
+var ATTRIBUTES_OFFSET = 3;
+
+/**
+ * Builds an array of arguments for use with elementOpenStart, attr and
+ * elementOpenEnd.
+ * @const {Array<*>}
+ */
+var argsBuilder = [];
+
+/**
+ * @param {string} tag The element's tag.
+ * @param {?string=} key The key used to identify this element. This can be an
+ *     empty string, but performance may be better if a unique value is used
+ *     when iterating over an array of items.
+ * @param {?Array<*>=} statics An array of attribute name/value pairs of the
+ *     static attributes for the Element. These will only be set once when the
+ *     Element is created.
+ * @param {...*} const_args Attribute name/value pairs of the dynamic attributes
+ *     for the Element.
+ * @return {!Element} The corresponding Element.
+ */
+var elementOpen = function (tag, key, statics, const_args) {
+  if ('production' !== 'production') {}
+
+  var node = coreElementOpen(tag, key, statics);
+  var data = getData(node);
+
+  /*
+   * Checks to see if one or more attributes have changed for a given Element.
+   * When no attributes have changed, this is much faster than checking each
+   * individual argument. When attributes have changed, the overhead of this is
+   * minimal.
+   */
+  var attrsArr = data.attrsArr;
+  var newAttrs = data.newAttrs;
+  var attrsChanged = false;
+  var i = ATTRIBUTES_OFFSET;
+  var j = 0;
+
+  for (; i < arguments.length; i += 1, j += 1) {
+    if (attrsArr[j] !== arguments[i]) {
+      attrsChanged = true;
+      break;
+    }
+  }
+
+  for (; i < arguments.length; i += 1, j += 1) {
+    attrsArr[j] = arguments[i];
+  }
+
+  if (j < attrsArr.length) {
+    attrsChanged = true;
+    attrsArr.length = j;
+  }
+
+  /*
+   * Actually perform the attribute update.
+   */
+  if (attrsChanged) {
+    for (i = ATTRIBUTES_OFFSET; i < arguments.length; i += 2) {
+      newAttrs[arguments[i]] = arguments[i + 1];
+    }
+
+    for (var _attr in newAttrs) {
+      updateAttribute(node, _attr, newAttrs[_attr]);
+      newAttrs[_attr] = undefined;
+    }
+  }
+
+  return node;
+};
+
+/**
+ * Declares a virtual Element at the current location in the document. This
+ * corresponds to an opening tag and a elementClose tag is required. This is
+ * like elementOpen, but the attributes are defined using the attr function
+ * rather than being passed as arguments. Must be folllowed by 0 or more calls
+ * to attr, then a call to elementOpenEnd.
+ * @param {string} tag The element's tag.
+ * @param {?string=} key The key used to identify this element. This can be an
+ *     empty string, but performance may be better if a unique value is used
+ *     when iterating over an array of items.
+ * @param {?Array<*>=} statics An array of attribute name/value pairs of the
+ *     static attributes for the Element. These will only be set once when the
+ *     Element is created.
+ */
+var elementOpenStart = function (tag, key, statics) {
+  if ('production' !== 'production') {}
+
+  argsBuilder[0] = tag;
+  argsBuilder[1] = key;
+  argsBuilder[2] = statics;
+};
+
+/***
+ * Defines a virtual attribute at this point of the DOM. This is only valid
+ * when called between elementOpenStart and elementOpenEnd.
+ *
+ * @param {string} name
+ * @param {*} value
+ */
+var attr = function (name, value) {
+  if ('production' !== 'production') {}
+
+  argsBuilder.push(name, value);
+};
+
+/**
+ * Closes an open tag started with elementOpenStart.
+ * @return {!Element} The corresponding Element.
+ */
+var elementOpenEnd = function () {
+  if ('production' !== 'production') {}
+
+  var node = elementOpen.apply(null, argsBuilder);
+  argsBuilder.length = 0;
+  return node;
+};
+
+/**
+ * Closes an open virtual Element.
+ *
+ * @param {string} tag The element's tag.
+ * @return {!Element} The corresponding Element.
+ */
+var elementClose = function (tag) {
+  if ('production' !== 'production') {}
+
+  var node = coreElementClose();
+
+  if ('production' !== 'production') {}
+
+  return node;
+};
+
+/**
+ * Declares a virtual Element at the current location in the document that has
+ * no children.
+ * @param {string} tag The element's tag.
+ * @param {?string=} key The key used to identify this element. This can be an
+ *     empty string, but performance may be better if a unique value is used
+ *     when iterating over an array of items.
+ * @param {?Array<*>=} statics An array of attribute name/value pairs of the
+ *     static attributes for the Element. These will only be set once when the
+ *     Element is created.
+ * @param {...*} const_args Attribute name/value pairs of the dynamic attributes
+ *     for the Element.
+ * @return {!Element} The corresponding Element.
+ */
+var elementVoid = function (tag, key, statics, const_args) {
+  elementOpen.apply(null, arguments);
+  return elementClose(tag);
+};
+
+/**
+ * Declares a virtual Element at the current location in the document that is a
+ * placeholder element. Children of this Element can be manually managed and
+ * will not be cleared by the library.
+ *
+ * A key must be specified to make sure that this node is correctly preserved
+ * across all conditionals.
+ *
+ * @param {string} tag The element's tag.
+ * @param {string} key The key used to identify this element.
+ * @param {?Array<*>=} statics An array of attribute name/value pairs of the
+ *     static attributes for the Element. These will only be set once when the
+ *     Element is created.
+ * @param {...*} const_args Attribute name/value pairs of the dynamic attributes
+ *     for the Element.
+ * @return {!Element} The corresponding Element.
+ */
+var elementPlaceholder = function (tag, key, statics, const_args) {
+  if ('production' !== 'production') {}
+
+  elementOpen.apply(null, arguments);
+  skip();
+  return elementClose(tag);
+};
+
+/**
+ * Declares a virtual Text at this point in the document.
+ *
+ * @param {string|number|boolean} value The value of the Text.
+ * @param {...(function((string|number|boolean)):string)} const_args
+ *     Functions to format the value which are called only when the value has
+ *     changed.
+ * @return {!Text} The corresponding text node.
+ */
+var text = function (value, const_args) {
+  if ('production' !== 'production') {}
+
+  var node = coreText();
+  var data = getData(node);
+
+  if (data.text !== value) {
+    data.text = /** @type {string} */value;
+
+    var formatted = value;
+    for (var i = 1; i < arguments.length; i += 1) {
+      /*
+       * Call the formatter function directly to prevent leaking arguments.
+       * https://github.com/google/incremental-dom/pull/204#issuecomment-178223574
+       */
+      var fn = arguments[i];
+      formatted = fn(formatted);
+    }
+
+    node.data = formatted;
+  }
+
+  return node;
+};
+
+exports.patch = patchInner;
+exports.patchInner = patchInner;
+exports.patchOuter = patchOuter;
+exports.currentElement = currentElement;
+exports.skip = skip;
+exports.elementVoid = elementVoid;
+exports.elementOpenStart = elementOpenStart;
+exports.elementOpenEnd = elementOpenEnd;
+exports.elementOpen = elementOpen;
+exports.elementClose = elementClose;
+exports.elementPlaceholder = elementPlaceholder;
+exports.text = text;
+exports.attr = attr;
+exports.symbols = symbols;
+exports.attributes = attributes;
+exports.applyAttr = applyAttr;
+exports.applyProp = applyProp;
+exports.notifications = notifications;
+
+
+},{}],4:[function(require,module,exports){
 'use strict';
 
 var _createClass = function () { function defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ("value" in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } } return function (Constructor, protoProps, staticProps) { if (protoProps) defineProperties(Constructor.prototype, protoProps); if (staticProps) defineProperties(Constructor, staticProps); return Constructor; }; }();
@@ -14721,71 +14721,11 @@ var skate = _interopRequireWildcard(_skatejs);
 
 function _interopRequireWildcard(obj) { if (obj && obj.__esModule) { return obj; } else { var newObj = {}; if (obj != null) { for (var key in obj) { if (Object.prototype.hasOwnProperty.call(obj, key)) newObj[key] = obj[key]; } } newObj.default = obj; return newObj; } }
 
-var _use$statics = ['xmlnsXlink', 'http://www.w3.org/1999/xlink', 'xlinkHref', '#wds-company-logo-fandom'],
-    _svg$statics = ['class', 'wds-global-navigation__logo-image wds-is-wds-company-logo-fandom'],
-    _use$statics2 = ['xmlnsXlink', 'http://www.w3.org/1999/xlink', 'xlinkHref', '#wds-company-logo-powered-by-wikia'],
-    _svg$statics2 = ['class', 'wds-global-navigation__logo-image wds-is-wds-company-logo-powered-by-wikia'],
-    _a$statics = ['class', 'wds-global-navigation__logo', 'href', 'http://fandom.wikia.com'],
-    _a$statics2 = ['class', 'wds-global-navigation__link wds-is-games'],
-    _a$statics3 = ['class', 'wds-global-navigation__link wds-is-movies'],
-    _a$statics4 = ['class', 'wds-global-navigation__link wds-is-tv'],
-    _use$statics3 = ['xmlnsXlink', 'http://www.w3.org/1999/xlink', 'xlinkHref', '#wds-icons-dropdown-tiny'],
-    _svg$statics3 = ['class', 'wds-icon wds-icon-tiny wds-dropdown__toggle-chevron'],
-    _div$statics = ['class', 'wds-global-navigation__dropdown-toggle wds-dropdown__toggle'],
-    _a$statics5 = ['class', 'wds-global-navigation__dropdown-link'],
-    _a$statics6 = ['class', 'wds-global-navigation__dropdown-link'],
-    _a$statics7 = ['class', 'wds-global-navigation__dropdown-link'],
-    _ul$statics = ['class', 'wds-is-linked wds-list'],
-    _div$statics2 = ['class', 'wds-global-navigation__dropdown-content wds-dropdown__content'],
-    _div$statics3 = ['class', 'wds-global-navigation__wikis-menu wds-dropdown'],
-    _use$statics4 = ['xmlnsXlink', 'http://www.w3.org/1999/xlink', 'xlinkHref', '#wds-icons-magnifying-glass'],
-    _svg$statics4 = ['class', 'wds-icon wds-icon-small wds-global-navigation__search-label-icon'],
-    _input$statics = ['type', 'search', 'name', 'query', 'placeholder', 'Search', 'autocomplete', 'off', 'class', 'wds-global-navigation__search-input'],
-    _label$statics = ['class', 'wds-dropdown__toggle wds-global-navigation__search-label'],
-    _use$statics5 = ['xmlnsXlink', 'http://www.w3.org/1999/xlink', 'xlinkHref', '#wds-icons-cross'],
-    _svg$statics5 = ['class', 'wds-icon wds-icon-small wds-global-navigation__search-close-icon'],
-    _button$statics = ['class', 'wds-button wds-is-text wds-global-navigation__search-close', 'type', 'reset', 'data-ember-action', '690'],
-    _ul$statics2 = ['class', 'wds-has-ellipsis wds-is-linked wds-list'],
-    _div$statics4 = ['class', 'wds-dropdown__content wds-global-navigation__search-suggestions'],
-    _use$statics6 = ['xmlnsXlink', 'http://www.w3.org/1999/xlink', 'xlinkHref', '#wds-icons-arrow'],
-    _svg$statics6 = ['class', 'wds-icon wds-icon-small wds-global-navigation__search-submit-icon'],
-    _button$statics2 = ['class', 'wds-button wds-global-navigation__search-submit', 'type', 'button', 'disabled', 'true'],
-    _div$statics5 = ['class', 'wds-global-navigation__search-input-wrapper wds-dropdown '],
-    _form$statics = ['class', 'wds-global-navigation__search'],
-    _div$statics6 = ['class', 'wds-global-navigation__links-and-search'],
-    _use$statics7 = ['xmlnsXlink', 'http://www.w3.org/1999/xlink', 'xlinkHref', '#wds-icons-user'],
-    _svg$statics7 = ['class', 'wds-icon wds-icon-small'],
-    _span$statics = ['class', 'wds-global-navigation__account-menu-caption'],
-    _use$statics8 = ['xmlnsXlink', 'http://www.w3.org/1999/xlink', 'xlinkHref', '#wds-icons-dropdown-tiny'],
-    _svg$statics8 = ['class', 'wds-icon wds-icon-tiny wds-dropdown__toggle-chevron'],
-    _div$statics7 = ['class', 'wds-global-navigation__dropdown-toggle wds-dropdown__toggle'],
-    _a$statics8 = ['rel', 'nofollow', 'href', '', 'class', 'wds-button wds-is-full-width'],
-    _div$statics8 = ['class', 'wds-global-navigation__account-menu-dropdown-caption'],
-    _a$statics9 = ['rel', 'nofollow', 'href', '', 'class', 'wds-button wds-is-full-width wds-is-secondary'],
-    _ul$statics3 = ['class', 'wds-has-lines-between wds-list'],
-    _div$statics9 = ['class', 'wds-global-navigation__dropdown-content wds-dropdown__content wds-is-right-aligned'],
-    _div$statics10 = ['class', 'wds-global-navigation__account-menu wds-dropdown'],
-    _span$statics2 = ['class', 'wds-global-navigation__start-a-wiki-caption'],
-    _use$statics9 = ['xmlnsXlink', 'http://www.w3.org/1999/xlink', 'xlinkHref', '#wds-icons-plus'],
-    _svg$statics9 = ['class', 'wds-global-navigation__start-a-wiki-icon wds-icon'],
-    _a$statics10 = ['class', 'wds-global-navigation__start-a-wiki-button wds-button wds-is-squished wds-is-secondary', 'href', 'http://www.wikia.com/Special:CreateNewWiki'],
-    _div$statics11 = ['class', 'wds-global-navigation__start-a-wiki'],
-    _div$statics12 = ['class', 'wds-global-navigation__content-bar'],
-    _div$statics13 = ['class', 'wds-global-navigation'];
-
 function _classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError("Cannot call a class as a function"); } }
 
 function _possibleConstructorReturn(self, call) { if (!self) { throw new ReferenceError("this hasn't been initialised - super() hasn't been called"); } return call && (typeof call === "object" || typeof call === "function") ? call : self; }
 
 function _inherits(subClass, superClass) { if (typeof superClass !== "function" && superClass !== null) { throw new TypeError("Super expression must either be null or a function, not " + typeof superClass); } subClass.prototype = Object.create(superClass && superClass.prototype, { constructor: { value: subClass, enumerable: false, writable: true, configurable: true } }); if (superClass) Object.setPrototypeOf ? Object.setPrototypeOf(subClass, superClass) : subClass.__proto__ = superClass; }
-
-var React = { createElement: skate.h };
-var _skate$vdom = skate.vdom,
-    elementOpen = _skate$vdom.elementOpen,
-    elementClose = _skate$vdom.elementClose,
-    elementVoid = _skate$vdom.elementVoid,
-    text = _skate$vdom.text;
-
 
 customElements.define('wds-global-navigation', function (_skate$Component) {
 	_inherits(_class, _skate$Component);
@@ -14799,134 +14739,218 @@ customElements.define('wds-global-navigation', function (_skate$Component) {
 	_createClass(_class, [{
 		key: 'renderCallback',
 		value: function renderCallback() {
-			elementOpen('div', '11de7747-8604-4ee5-b2b8-8e61ac4b4d16', _div$statics13);
-			elementOpen('style');
-			text('@import \'http://wikiadesignsystem.com/assets/design-system.css\'');
-			elementClose('style');
-			elementOpen('div', '2aa2c186-02c0-4e7b-8e6c-966ab59f1245', _div$statics12);
-			elementOpen('a', 'c318a3bf-101a-466b-a2de-a5aef531c2ad', _a$statics);
-			elementOpen('svg', '5e69ce13-5e8a-44a3-b9e4-a540b126587d', _svg$statics);
-			elementOpen('use', '67eebca3-bbc9-4509-a461-3095c82a9eb0', _use$statics);
-			elementClose('use');
-			elementClose('svg');
-			elementOpen('svg', 'a302c692-cf79-457e-ab8f-2e798d4af89e', _svg$statics2);
-			elementOpen('use', '8b28c08f-2e53-4504-a1c3-1ba1cbf2db3f', _use$statics2);
-			elementClose('use');
-			elementClose('svg');
-			elementClose('a');
-			elementOpen('div', 'ef1c3d6c-8272-41a7-a8a1-c920316d2c46', _div$statics6);
-			elementOpen('a', 'cacd346f-5d39-4f26-a0d9-2e3851379c89', _a$statics2);
-			text('Games');
-			elementClose('a');
-			elementOpen('a', '2c98b7b8-6eef-4621-95e4-cbc2ba7d47c8', _a$statics3);
-			text('Movies');
-			elementClose('a');
-			elementOpen('a', '08c8526a-b3d4-48db-b176-af6560499bfb', _a$statics4);
-			text('TV');
-			elementClose('a');
-			elementOpen('div', 'a06ffb34-b9b7-4d13-9aa5-28cc0e10ab47', _div$statics3);
-			elementOpen('div', '6748ecb3-d622-4027-8fc2-aeefe08f5795', _div$statics);
-			elementOpen('span');
-			text('Wikis');
-			elementClose('span');
-			elementOpen('svg', '0d01242a-b223-430e-a4ae-ef3669cd65eb', _svg$statics3);
-			elementOpen('use', '1739bd27-ccd2-4390-89f5-15a128415eee', _use$statics3);
-			elementClose('use');
-			elementClose('svg');
-			elementClose('div');
-			elementOpen('div', '8ab9d944-fc0c-45df-9c16-049adc60fac4', _div$statics2);
-			elementOpen('ul', 'b1785c18-3774-4806-973d-1b2594b535c9', _ul$statics);
-			elementOpen('li');
-			elementOpen('a', 'c1a4dd4c-3eae-44d0-9203-7d3c5f78cf86', _a$statics5);
-			text('Explore Wikis');
-			elementClose('a');
-			elementClose('li');
-			elementOpen('li');
-			elementOpen('a', 'ea931765-1821-4e5d-b823-824e3d6edc04', _a$statics6);
-			text('Community Central');
-			elementClose('a');
-			elementClose('li');
-			elementOpen('li');
-			elementOpen('a', 'c44d27ae-ab86-48d9-b123-6d300df73178', _a$statics7);
-			text('Fandom University');
-			elementClose('a');
-			elementClose('li');
-			elementClose('ul');
-			elementClose('div');
-			elementClose('div');
-			elementOpen('form', 'd1983196-b452-48c9-b3a9-fed8c8b49e93', _form$statics);
-			elementOpen('div', '07abb06a-db10-4baf-9821-594b0339ecfc', _div$statics5);
-			elementOpen('label', 'affcc43d-d222-44ff-b21e-87920400cf5d', _label$statics);
-			elementOpen('svg', '7a4fbe6e-2632-4d3a-9b63-1cfd23f40470', _svg$statics4);
-			elementOpen('use', 'a33904c4-a6e4-455c-b1aa-873e514a0d16', _use$statics4);
-			elementClose('use');
-			elementClose('svg');
-			elementVoid('input', '50d6350f-057e-4ee1-bb2c-d7cbe24038ba', _input$statics);
-			elementClose('label');
-			elementOpen('button', 'a2346757-6ed3-4506-a4b5-fe1b31b1119d', _button$statics);
-			elementOpen('svg', 'f5a89b72-9c93-4da6-b04f-45dfeba0556c', _svg$statics5);
-			elementOpen('use', '81f33a16-ec86-4776-81d3-8371ec98ce3a', _use$statics5);
-			elementClose('use');
-			elementClose('svg');
-			elementClose('button');
-			elementOpen('div', '1adb39ea-dc54-4365-b53c-79d1bee96628', _div$statics4);
-			elementOpen('ul', '02232cda-5317-4006-814e-2b607e598f38', _ul$statics2);
-			elementClose('ul');
-			elementClose('div');
-			elementOpen('button', '81d5149a-4c6a-4693-bf84-1357f5957f5d', _button$statics2);
-			elementOpen('svg', 'f2a673ea-c09d-4ed8-b931-6ad730cbbad3', _svg$statics6);
-			elementOpen('use', '9196eb6c-d0a4-4f30-888c-652b3c15abda', _use$statics6);
-			elementClose('use');
-			elementClose('svg');
-			elementClose('button');
-			elementClose('div');
-			elementClose('form');
-			elementClose('div');
-			elementOpen('div', '27731fc8-21e5-4f20-afa5-145ea0831086', _div$statics10);
-			elementOpen('div', '4fc05124-3f31-4a8f-8d97-b06119d83172', _div$statics7);
-			elementOpen('svg', '640c37ad-4251-44f3-9def-30a3ac8e6172', _svg$statics7);
-			elementOpen('use', 'b744d0ce-8338-47f7-be23-baa7416107ea', _use$statics7);
-			elementClose('use');
-			elementClose('svg');
-			elementOpen('span', 'f8aea163-58c4-42be-b2d7-865bd6bc705e', _span$statics);
-			text('My Account');
-			elementClose('span');
-			elementOpen('svg', '2a5ce0bd-b75a-450c-a9c5-cc91f0b6e71b', _svg$statics8);
-			elementOpen('use', '547dbba3-feb1-4a01-894a-253da6e32856', _use$statics8);
-			elementClose('use');
-			elementClose('svg');
-			elementClose('div');
-			elementOpen('div', 'e68975c0-2244-44be-b2ca-72d489ce2bb5', _div$statics9);
-			elementOpen('ul', '0b568bf5-63c3-4918-a38f-87ccf9db7264', _ul$statics3);
-			elementOpen('li');
-			elementOpen('a', '7b6ba53b-1fc1-4483-ae1a-0a3742be8b31', _a$statics8);
-			text('Sign In');
-			elementClose('a');
-			elementClose('li');
-			elementOpen('li');
-			elementOpen('div', 'd743f0c4-63f4-49fb-8763-1308ec1b38ae', _div$statics8);
-			text('Don\'t have an account?');
-			elementClose('div');
-			elementOpen('a', 'd36df093-1a48-476b-b9b4-4f8fad9aa168', _a$statics9);
-			text('Register');
-			elementClose('a');
-			elementClose('li');
-			elementClose('ul');
-			elementClose('div');
-			elementClose('div');
-			elementOpen('div', '37cad0aa-43dd-410d-9bd0-d4c9b3e3ff71', _div$statics11);
-			elementOpen('a', '1c1bcc38-8c08-4017-b99b-43c3896a5311', _a$statics10);
-			elementOpen('span', '40942bbe-4a46-4bd7-8127-3a0f276cd805', _span$statics2);
-			text('Start a Wiki');
-			elementClose('span');
-			elementOpen('svg', '7105070e-91b3-4743-83fe-15e1104726be', _svg$statics9);
-			elementOpen('use', '916a0ac7-6cbc-4570-8148-9a360bd2b2e3', _use$statics9);
-			elementClose('use');
-			elementClose('svg');
-			elementClose('a');
-			elementClose('div');
-			elementClose('div');
-			return elementClose('div');
+			return skate.h(
+				'div',
+				{ 'class': 'wds-global-navigation' },
+				skate.h(
+					'style',
+					null,
+					'@import \'http://wikiadesignsystem.com/assets/design-system.css\''
+				),
+				skate.h(
+					'div',
+					{ 'class': 'wds-global-navigation__content-bar' },
+					skate.h(
+						'a',
+						{ 'class': 'wds-global-navigation__logo', href: 'http://fandom.wikia.com' },
+						skate.h(
+							'svg',
+							{ 'class': 'wds-global-navigation__logo-image wds-is-wds-company-logo-fandom' },
+							skate.h('use', { xmlnsXlink: 'http://www.w3.org/1999/xlink', xlinkHref: '#wds-company-logo-fandom' })
+						),
+						skate.h(
+							'svg',
+							{ 'class': 'wds-global-navigation__logo-image wds-is-wds-company-logo-powered-by-wikia' },
+							skate.h('use', { xmlnsXlink: 'http://www.w3.org/1999/xlink', xlinkHref: '#wds-company-logo-powered-by-wikia' })
+						)
+					),
+					skate.h(
+						'div',
+						{ 'class': 'wds-global-navigation__links-and-search' },
+						skate.h(
+							'a',
+							{ 'class': 'wds-global-navigation__link wds-is-games' },
+							'Games'
+						),
+						skate.h(
+							'a',
+							{ 'class': 'wds-global-navigation__link wds-is-movies' },
+							'Movies'
+						),
+						skate.h(
+							'a',
+							{ 'class': 'wds-global-navigation__link wds-is-tv' },
+							'TV'
+						),
+						skate.h(
+							'div',
+							{ 'class': 'wds-global-navigation__wikis-menu wds-dropdown' },
+							skate.h(
+								'div',
+								{ 'class': 'wds-global-navigation__dropdown-toggle wds-dropdown__toggle' },
+								skate.h(
+									'span',
+									null,
+									'Wikis'
+								),
+								skate.h(
+									'svg',
+									{ 'class': 'wds-icon wds-icon-tiny wds-dropdown__toggle-chevron' },
+									skate.h('use', { xmlnsXlink: 'http://www.w3.org/1999/xlink', xlinkHref: '#wds-icons-dropdown-tiny' })
+								)
+							),
+							skate.h(
+								'div',
+								{ 'class': 'wds-global-navigation__dropdown-content wds-dropdown__content' },
+								skate.h(
+									'ul',
+									{ 'class': 'wds-is-linked wds-list' },
+									skate.h(
+										'li',
+										null,
+										skate.h(
+											'a',
+											{ 'class': 'wds-global-navigation__dropdown-link' },
+											'Explore Wikis'
+										)
+									),
+									skate.h(
+										'li',
+										null,
+										skate.h(
+											'a',
+											{ 'class': 'wds-global-navigation__dropdown-link' },
+											'Community Central'
+										)
+									),
+									skate.h(
+										'li',
+										null,
+										skate.h(
+											'a',
+											{ 'class': 'wds-global-navigation__dropdown-link' },
+											'Fandom University'
+										)
+									)
+								)
+							)
+						),
+						skate.h(
+							'form',
+							{ 'class': 'wds-global-navigation__search' },
+							skate.h(
+								'div',
+								{ 'class': 'wds-global-navigation__search-input-wrapper wds-dropdown ' },
+								skate.h(
+									'label',
+									{ 'class': 'wds-dropdown__toggle wds-global-navigation__search-label' },
+									skate.h(
+										'svg',
+										{ 'class': 'wds-icon wds-icon-small wds-global-navigation__search-label-icon' },
+										skate.h('use', { xmlnsXlink: 'http://www.w3.org/1999/xlink', xlinkHref: '#wds-icons-magnifying-glass' })
+									),
+									skate.h('input', { type: 'search', name: 'query', placeholder: 'Search', autocomplete: 'off', 'class': 'wds-global-navigation__search-input' })
+								),
+								skate.h(
+									'button',
+									{ 'class': 'wds-button wds-is-text wds-global-navigation__search-close', type: 'reset', 'data-ember-action': '690' },
+									skate.h(
+										'svg',
+										{ 'class': 'wds-icon wds-icon-small wds-global-navigation__search-close-icon' },
+										skate.h('use', { xmlnsXlink: 'http://www.w3.org/1999/xlink', xlinkHref: '#wds-icons-cross' })
+									)
+								),
+								skate.h(
+									'div',
+									{ 'class': 'wds-dropdown__content wds-global-navigation__search-suggestions' },
+									skate.h('ul', { 'class': 'wds-has-ellipsis wds-is-linked wds-list' })
+								),
+								skate.h(
+									'button',
+									{ 'class': 'wds-button wds-global-navigation__search-submit', type: 'button', disabled: true },
+									skate.h(
+										'svg',
+										{ 'class': 'wds-icon wds-icon-small wds-global-navigation__search-submit-icon' },
+										skate.h('use', { xmlnsXlink: 'http://www.w3.org/1999/xlink', xlinkHref: '#wds-icons-arrow' })
+									)
+								)
+							)
+						)
+					),
+					skate.h(
+						'div',
+						{ 'class': 'wds-global-navigation__account-menu wds-dropdown' },
+						skate.h(
+							'div',
+							{ 'class': 'wds-global-navigation__dropdown-toggle wds-dropdown__toggle' },
+							skate.h(
+								'svg',
+								{ 'class': 'wds-icon wds-icon-small' },
+								skate.h('use', { xmlnsXlink: 'http://www.w3.org/1999/xlink', xlinkHref: '#wds-icons-user' })
+							),
+							skate.h(
+								'span',
+								{ 'class': 'wds-global-navigation__account-menu-caption' },
+								'My Account'
+							),
+							skate.h(
+								'svg',
+								{ 'class': 'wds-icon wds-icon-tiny wds-dropdown__toggle-chevron' },
+								skate.h('use', { xmlnsXlink: 'http://www.w3.org/1999/xlink', xlinkHref: '#wds-icons-dropdown-tiny' })
+							)
+						),
+						skate.h(
+							'div',
+							{ 'class': 'wds-global-navigation__dropdown-content wds-dropdown__content wds-is-right-aligned' },
+							skate.h(
+								'ul',
+								{ 'class': 'wds-has-lines-between wds-list' },
+								skate.h(
+									'li',
+									null,
+									skate.h(
+										'a',
+										{ rel: 'nofollow', href: '', 'class': 'wds-button wds-is-full-width' },
+										'Sign In'
+									)
+								),
+								skate.h(
+									'li',
+									null,
+									skate.h(
+										'div',
+										{ 'class': 'wds-global-navigation__account-menu-dropdown-caption' },
+										'Don\'t have an account?'
+									),
+									skate.h(
+										'a',
+										{ rel: 'nofollow', href: '', 'class': 'wds-button wds-is-full-width wds-is-secondary' },
+										'Register'
+									)
+								)
+							)
+						)
+					),
+					skate.h(
+						'div',
+						{ 'class': 'wds-global-navigation__start-a-wiki' },
+						skate.h(
+							'a',
+							{ 'class': 'wds-global-navigation__start-a-wiki-button wds-button wds-is-squished wds-is-secondary', href: 'http://www.wikia.com/Special:CreateNewWiki' },
+							skate.h(
+								'span',
+								{ 'class': 'wds-global-navigation__start-a-wiki-caption' },
+								'Start a Wiki'
+							),
+							skate.h(
+								'svg',
+								{ 'class': 'wds-global-navigation__start-a-wiki-icon wds-icon' },
+								skate.h('use', { xmlnsXlink: 'http://www.w3.org/1999/xlink', xlinkHref: '#wds-icons-plus' })
+							)
+						)
+					)
+				)
+			);
 		}
 	}], [{
 		key: 'props',
@@ -14940,4 +14964,4 @@ customElements.define('wds-global-navigation', function (_skate$Component) {
 	return _class;
 }(skate.Component));
 
-},{"skatejs":3,"skatejs-web-components":2}]},{},[4]);
+},{"skatejs":2,"skatejs-web-components":1}]},{},[4]);

@@ -1,7 +1,5 @@
 import 'skatejs-web-components';
 import * as skate from 'skatejs';
-const React = { createElement: skate.h };
-const { elementOpen, elementClose, elementVoid, text } = skate.vdom;
 
 customElements.define('wds-global-navigation', class extends skate.Component {
 	static get props () {
