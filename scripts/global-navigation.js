@@ -22,7 +22,12 @@ customElements.define('global-navigation', class extends skate.Component {
 	}
 
 	style() {
-		return <style>@import 'http://wikiadesignsystem.com/assets/design-system.css'</style>;
+		return <style>
+			@import 'http://wikiadesignsystem.com/assets/design-system.css';
+			{`.wds-global-navigation {
+				z-index: 5000102;
+			}`}
+		</style>;
 	}
 
 	logo() {
