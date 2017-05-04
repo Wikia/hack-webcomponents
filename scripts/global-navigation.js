@@ -66,20 +66,20 @@ customElements.define('global-navigation', class extends skate.Component {
 			}
 		}
 
-		$('.wds-dropdown.wds-is-active').not($clickedDropdown)
+		$(this).find('.wds-dropdown.wds-is-active').not($clickedDropdown)
 			.removeClass('wds-is-active')
 			.trigger('wds-dropdown-close');
 
-		$('.wds-global-navigation').toggleClass(
+		$(this).find('.wds-global-navigation').toggleClass(
 			'wds-dropdown-is-open',
 			Boolean($clickedDropdown.hasClass('wds-is-active'))
 		);
 	};
 
 	renderCallback () {
-		return <div class="wds-global-navigation">
+		return <div class="wds-global-navigation" onClick={ this.globalNavOnclick }>
 			{this.style()}
-			<div class="wds-global-navigation__content-bar" onClick= { this.globalNavOnclick }>
+			<div class="wds-global-navigation__content-bar">
 				{this.logo()}
 				<div class="wds-global-navigation__links-and-search">
 					{this.fandomOverviewLinks()}
