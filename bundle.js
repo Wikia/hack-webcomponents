@@ -14721,11 +14721,71 @@ var skate = _interopRequireWildcard(_skatejs);
 
 function _interopRequireWildcard(obj) { if (obj && obj.__esModule) { return obj; } else { var newObj = {}; if (obj != null) { for (var key in obj) { if (Object.prototype.hasOwnProperty.call(obj, key)) newObj[key] = obj[key]; } } newObj.default = obj; return newObj; } }
 
+var _use$statics = ['xmlnsXlink', 'http://www.w3.org/1999/xlink', 'xlinkHref', '#wds-company-logo-fandom'],
+    _svg$statics = ['class', 'wds-global-navigation__logo-image wds-is-wds-company-logo-fandom'],
+    _use$statics2 = ['xmlnsXlink', 'http://www.w3.org/1999/xlink', 'xlinkHref', '#wds-company-logo-powered-by-wikia'],
+    _svg$statics2 = ['class', 'wds-global-navigation__logo-image wds-is-wds-company-logo-powered-by-wikia'],
+    _a$statics = ['class', 'wds-global-navigation__logo', 'href', 'http://fandom.wikia.com'],
+    _a$statics2 = ['class', 'wds-global-navigation__link wds-is-games'],
+    _a$statics3 = ['class', 'wds-global-navigation__link wds-is-movies'],
+    _a$statics4 = ['class', 'wds-global-navigation__link wds-is-tv'],
+    _use$statics3 = ['xmlnsXlink', 'http://www.w3.org/1999/xlink', 'xlinkHref', '#wds-icons-dropdown-tiny'],
+    _svg$statics3 = ['class', 'wds-icon wds-icon-tiny wds-dropdown__toggle-chevron'],
+    _div$statics = ['class', 'wds-global-navigation__dropdown-toggle wds-dropdown__toggle'],
+    _a$statics5 = ['class', 'wds-global-navigation__dropdown-link'],
+    _a$statics6 = ['class', 'wds-global-navigation__dropdown-link'],
+    _a$statics7 = ['class', 'wds-global-navigation__dropdown-link'],
+    _ul$statics = ['class', 'wds-is-linked wds-list'],
+    _div$statics2 = ['class', 'wds-global-navigation__dropdown-content wds-dropdown__content'],
+    _div$statics3 = ['class', 'wds-global-navigation__wikis-menu wds-dropdown'],
+    _use$statics4 = ['xmlnsXlink', 'http://www.w3.org/1999/xlink', 'xlinkHref', '#wds-icons-magnifying-glass'],
+    _svg$statics4 = ['class', 'wds-icon wds-icon-small wds-global-navigation__search-label-icon'],
+    _input$statics = ['type', 'search', 'name', 'query', 'placeholder', 'Search', 'autocomplete', 'off', 'class', 'wds-global-navigation__search-input'],
+    _label$statics = ['class', 'wds-dropdown__toggle wds-global-navigation__search-label'],
+    _use$statics5 = ['xmlnsXlink', 'http://www.w3.org/1999/xlink', 'xlinkHref', '#wds-icons-cross'],
+    _svg$statics5 = ['class', 'wds-icon wds-icon-small wds-global-navigation__search-close-icon'],
+    _button$statics = ['class', 'wds-button wds-is-text wds-global-navigation__search-close', 'type', 'reset', 'data-ember-action', '690'],
+    _ul$statics2 = ['class', 'wds-has-ellipsis wds-is-linked wds-list'],
+    _div$statics4 = ['class', 'wds-dropdown__content wds-global-navigation__search-suggestions'],
+    _use$statics6 = ['xmlnsXlink', 'http://www.w3.org/1999/xlink', 'xlinkHref', '#wds-icons-arrow'],
+    _svg$statics6 = ['class', 'wds-icon wds-icon-small wds-global-navigation__search-submit-icon'],
+    _button$statics2 = ['class', 'wds-button wds-global-navigation__search-submit', 'type', 'button', 'disabled', 'true'],
+    _div$statics5 = ['class', 'wds-global-navigation__search-input-wrapper wds-dropdown '],
+    _form$statics = ['class', 'wds-global-navigation__search'],
+    _div$statics6 = ['class', 'wds-global-navigation__links-and-search'],
+    _use$statics7 = ['xmlnsXlink', 'http://www.w3.org/1999/xlink', 'xlinkHref', '#wds-icons-user'],
+    _svg$statics7 = ['class', 'wds-icon wds-icon-small'],
+    _span$statics = ['class', 'wds-global-navigation__account-menu-caption'],
+    _use$statics8 = ['xmlnsXlink', 'http://www.w3.org/1999/xlink', 'xlinkHref', '#wds-icons-dropdown-tiny'],
+    _svg$statics8 = ['class', 'wds-icon wds-icon-tiny wds-dropdown__toggle-chevron'],
+    _div$statics7 = ['class', 'wds-global-navigation__dropdown-toggle wds-dropdown__toggle'],
+    _a$statics8 = ['rel', 'nofollow', 'href', '', 'class', 'wds-button wds-is-full-width'],
+    _div$statics8 = ['class', 'wds-global-navigation__account-menu-dropdown-caption'],
+    _a$statics9 = ['rel', 'nofollow', 'href', '', 'class', 'wds-button wds-is-full-width wds-is-secondary'],
+    _ul$statics3 = ['class', 'wds-has-lines-between wds-list'],
+    _div$statics9 = ['class', 'wds-global-navigation__dropdown-content wds-dropdown__content wds-is-right-aligned'],
+    _div$statics10 = ['class', 'wds-global-navigation__account-menu wds-dropdown'],
+    _span$statics2 = ['class', 'wds-global-navigation__start-a-wiki-caption'],
+    _use$statics9 = ['xmlnsXlink', 'http://www.w3.org/1999/xlink', 'xlinkHref', '#wds-icons-plus'],
+    _svg$statics9 = ['class', 'wds-global-navigation__start-a-wiki-icon wds-icon'],
+    _a$statics10 = ['class', 'wds-global-navigation__start-a-wiki-button wds-button wds-is-squished wds-is-secondary', 'href', 'http://www.wikia.com/Special:CreateNewWiki'],
+    _div$statics11 = ['class', 'wds-global-navigation__start-a-wiki'],
+    _div$statics12 = ['class', 'wds-global-navigation__content-bar'],
+    _div$statics13 = ['class', 'wds-global-navigation'];
+
 function _classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError("Cannot call a class as a function"); } }
 
 function _possibleConstructorReturn(self, call) { if (!self) { throw new ReferenceError("this hasn't been initialised - super() hasn't been called"); } return call && (typeof call === "object" || typeof call === "function") ? call : self; }
 
 function _inherits(subClass, superClass) { if (typeof superClass !== "function" && superClass !== null) { throw new TypeError("Super expression must either be null or a function, not " + typeof superClass); } subClass.prototype = Object.create(superClass && superClass.prototype, { constructor: { value: subClass, enumerable: false, writable: true, configurable: true } }); if (superClass) Object.setPrototypeOf ? Object.setPrototypeOf(subClass, superClass) : subClass.__proto__ = superClass; }
+
+var React = { createElement: skate.h };
+var _skate$vdom = skate.vdom,
+    elementOpen = _skate$vdom.elementOpen,
+    elementClose = _skate$vdom.elementClose,
+    elementVoid = _skate$vdom.elementVoid,
+    text = _skate$vdom.text;
+
 
 customElements.define('x-hello', function (_skate$Component) {
 	_inherits(_class, _skate$Component);
@@ -14739,7 +14799,131 @@ customElements.define('x-hello', function (_skate$Component) {
 	_createClass(_class, [{
 		key: 'renderCallback',
 		value: function renderCallback() {
-			return skate.h('div', 'Hello, ' + this.name);
+			elementOpen('div', 'c441e7e6-a4cd-4809-9092-f5571dede921', _div$statics13);
+			elementOpen('div', 'fc2e2bf3-c5f2-4adc-aebb-c1893a34d63b', _div$statics12);
+			elementOpen('a', '07bc9373-3f8a-4c5e-b599-ae89a29d2533', _a$statics);
+			elementOpen('svg', 'b836606d-34e3-4521-be0b-8e7bd9901312', _svg$statics);
+			elementOpen('use', 'e0166e6b-d2cb-4500-ad14-598273d97157', _use$statics);
+			elementClose('use');
+			elementClose('svg');
+			elementOpen('svg', '01602c68-7cf2-42d7-880d-2201fdd1fce8', _svg$statics2);
+			elementOpen('use', '4e395736-3f4e-4999-a7ac-fb17102be77a', _use$statics2);
+			elementClose('use');
+			elementClose('svg');
+			elementClose('a');
+			elementOpen('div', 'ba67450a-6423-43d7-9275-0ab0f787e0db', _div$statics6);
+			elementOpen('a', 'a51116ee-2234-430c-909a-47385030369e', _a$statics2);
+			text('Games');
+			elementClose('a');
+			elementOpen('a', 'fe2a91d5-0017-4853-9f77-41c88f958a4f', _a$statics3);
+			text('Movies');
+			elementClose('a');
+			elementOpen('a', '40fd0df3-f914-4149-83f1-c6afe8ab359e', _a$statics4);
+			text('TV');
+			elementClose('a');
+			elementOpen('div', '60de45e2-06fa-47c1-84d5-620e1bb3fcf0', _div$statics3);
+			elementOpen('div', 'e01fa469-7fcd-4e6c-831f-15046fa504d5', _div$statics);
+			elementOpen('span');
+			text('Wikis');
+			elementClose('span');
+			elementOpen('svg', '16d4f526-0a6a-4b43-bec0-5d11554ae4d2', _svg$statics3);
+			elementOpen('use', '4b42ef7d-c81e-4d09-a714-01f279b268b0', _use$statics3);
+			elementClose('use');
+			elementClose('svg');
+			elementClose('div');
+			elementOpen('div', '1cd5dca8-469c-4f78-ad3f-89aa16fa2531', _div$statics2);
+			elementOpen('ul', '3438c527-13f8-405d-b507-35f0370e14f2', _ul$statics);
+			elementOpen('li');
+			elementOpen('a', '7749aaf7-2933-4c7a-b0fa-87afddf6830d', _a$statics5);
+			text('Explore Wikis');
+			elementClose('a');
+			elementClose('li');
+			elementOpen('li');
+			elementOpen('a', '5f2142de-758c-4454-acef-95090e6b9535', _a$statics6);
+			text('Community Central');
+			elementClose('a');
+			elementClose('li');
+			elementOpen('li');
+			elementOpen('a', 'ac194de2-7bbf-4c2e-b71f-e665957fc6af', _a$statics7);
+			text('Fandom University');
+			elementClose('a');
+			elementClose('li');
+			elementClose('ul');
+			elementClose('div');
+			elementClose('div');
+			elementOpen('form', '241f6f13-33a5-477b-9dbf-0c6f7f5a337a', _form$statics);
+			elementOpen('div', 'ce23a167-1109-4ece-b32f-9e0d438bf290', _div$statics5);
+			elementOpen('label', '08022206-8e76-4571-a8a6-d4a1f43488ea', _label$statics);
+			elementOpen('svg', '20341388-dec3-4cf7-8502-43debfc3ad7d', _svg$statics4);
+			elementOpen('use', '68ce4433-3ba3-4433-9677-74dd2354fe1a', _use$statics4);
+			elementClose('use');
+			elementClose('svg');
+			elementVoid('input', 'dee470d6-e2e6-4c8b-946e-29871d36f5f1', _input$statics);
+			elementClose('label');
+			elementOpen('button', '50c754a0-343a-4244-8ac1-f0539cb279ce', _button$statics);
+			elementOpen('svg', 'a1c1ea19-d232-48fc-84f3-9054e891112c', _svg$statics5);
+			elementOpen('use', 'f4f79d1a-aec3-4578-a362-a173d0583d39', _use$statics5);
+			elementClose('use');
+			elementClose('svg');
+			elementClose('button');
+			elementOpen('div', '90090727-2195-41e5-bc27-e3c3cb865542', _div$statics4);
+			elementOpen('ul', 'e863d416-c42a-4071-a40e-7ce4f37a3e25', _ul$statics2);
+			elementClose('ul');
+			elementClose('div');
+			elementOpen('button', 'f66b8f6d-4e57-4d0d-badf-fbbbcfb4441c', _button$statics2);
+			elementOpen('svg', '2960daca-3f3d-419e-92b5-28733d307287', _svg$statics6);
+			elementOpen('use', 'baf1d86c-b1e0-40ca-9e14-6d9948bec60a', _use$statics6);
+			elementClose('use');
+			elementClose('svg');
+			elementClose('button');
+			elementClose('div');
+			elementClose('form');
+			elementClose('div');
+			elementOpen('div', 'fbc5c6bf-ba1a-448e-8b11-e5d170bc1e7b', _div$statics10);
+			elementOpen('div', 'fd0c1c17-26b2-4824-b33c-d9d1889cc326', _div$statics7);
+			elementOpen('svg', 'bb6afe0b-120b-4f2e-90f4-2d8e0230e6d0', _svg$statics7);
+			elementOpen('use', '00fe3406-5087-44db-9efc-a36e1d6f6f60', _use$statics7);
+			elementClose('use');
+			elementClose('svg');
+			elementOpen('span', 'f0604f7d-b7fb-402a-986e-3864b5a6c642', _span$statics);
+			text('My Account');
+			elementClose('span');
+			elementOpen('svg', '6539e2b0-d0a6-4d28-b3bd-e229a204b511', _svg$statics8);
+			elementOpen('use', '82265314-2941-402f-b4ce-6f286de87f63', _use$statics8);
+			elementClose('use');
+			elementClose('svg');
+			elementClose('div');
+			elementOpen('div', 'b3bcca80-db8d-4fba-b59b-1411d462b1d3', _div$statics9);
+			elementOpen('ul', 'f427472e-17a3-473c-9519-0d2328d21626', _ul$statics3);
+			elementOpen('li');
+			elementOpen('a', 'e0a1e8f6-205b-4d5b-bf58-503cd0baf78b', _a$statics8);
+			text('Sign In');
+			elementClose('a');
+			elementClose('li');
+			elementOpen('li');
+			elementOpen('div', '16c977e8-5c9d-4948-958e-371a93de0683', _div$statics8);
+			text('Don\'t have an account?');
+			elementClose('div');
+			elementOpen('a', 'e2cb6624-b752-4036-82ba-15ca3555603e', _a$statics9);
+			text('Register');
+			elementClose('a');
+			elementClose('li');
+			elementClose('ul');
+			elementClose('div');
+			elementClose('div');
+			elementOpen('div', 'f910b1e1-bc93-4898-9d09-8aa8b78f723e', _div$statics11);
+			elementOpen('a', 'c3916982-2394-49d9-b797-a537e21b89d6', _a$statics10);
+			elementOpen('span', '36d0e383-802d-4aa7-83b7-55d652e06499', _span$statics2);
+			text('Start a Wiki');
+			elementClose('span');
+			elementOpen('svg', 'c44e34ce-625c-479e-84b1-d44b32022ec3', _svg$statics9);
+			elementOpen('use', 'ea282430-cc66-443c-b2f7-00ebbfc64447', _use$statics9);
+			elementClose('use');
+			elementClose('svg');
+			elementClose('a');
+			elementClose('div');
+			elementClose('div');
+			return elementClose('div');
 		}
 	}], [{
 		key: 'props',
