@@ -3,7 +3,7 @@ import * as skate from 'skatejs';
 const React = { createElement: skate.h };
 const { elementOpen, elementClose, elementVoid, text } = skate.vdom;
 
-customElements.define('x-hello', class extends skate.Component {
+customElements.define('wds-global-navigation', class extends skate.Component {
 	static get props () {
 		return {
 			name: { attribute: true }
@@ -11,6 +11,7 @@ customElements.define('x-hello', class extends skate.Component {
 	}
 	renderCallback () {
 		return <div class="wds-global-navigation">
+			<style>@import 'http://wikiadesignsystem.com/assets/design-system.css'</style>
 			<div class="wds-global-navigation__content-bar">
 				<a class="wds-global-navigation__logo" href="http://fandom.wikia.com">
 					<svg class="wds-global-navigation__logo-image wds-is-wds-company-logo-fandom">
