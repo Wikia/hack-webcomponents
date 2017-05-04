@@ -114,6 +114,52 @@ customElements.define('global-navigation', class extends skate.Component {
 		</div>;
 	}
 
+	activateSearch() {
+		const $globalNav = $(this.root),
+			activeSearchClass = 'wds-search-is-active',
+			$searchInput = $(this.searchInput);
+		if (!$globalNav.hasClass(activeSearchClass)) {
+			$globalNav.addClass(activeSearchClass);
+			$searchInput.attr('placeholder', $searchInput.data('active-placeholder'));
+
+			/**
+			 * [bug fix]: On Firefox click is not triggered when placeholder text is changed
+			 * that is why we have to do it manually
+			 */
+			$(this).click();
+		}
+	}
+
+	deactivateSearch() {
+		const $globalNav = $(this.root),
+			$searchInput = $(this.searchInput),
+			$searchSubmit = $(this.searchSubmit),
+			placeholderText = $searchInput.attr('placeholder'),
+			activeSearchClass = 'wds-search-is-active';
+		$searchSubmit.prop('disabled', true);
+		$globalNav.removeClass(activeSearchClass);
+		$searchInput.attr('placeholder', placeholderText).val('');
+	}
+
+	searchKeydown(event) {
+		// Escape key
+		if (event.which === 27) {
+			this.blur();
+			this.deactivateSearch();
+		}
+	}
+
+	searchOnInput() {
+		const $searchSubmit = $(this.searchSubmit);
+		var textLength = this.searchInput.value.length;
+
+		if (textLength > 0 && $searchSubmit.prop('disabled')) {
+			$searchSubmit.prop('disabled', false);
+		} else if (textLength === 0) {
+			$searchSubmit.prop('disabled', true);
+		}
+	}
+
 	onClick(event) {
 		const $eventTarget = $(event.target),
 			$clickedToggle = $eventTarget.closest('.wds-dropdown__toggle'),
@@ -135,10 +181,20 @@ customElements.define('global-navigation', class extends skate.Component {
 			'wds-dropdown-is-open',
 			Boolean($clickedDropdown.hasClass('wds-is-active'))
 		);
-	};
+	}
+
+	renderedCallback () {
+		if ($(this.searchInput).is(':focus')) {
+			this.activateSearch();
+		}
+
+		if ($(this.searchInput).val().length === 0) {
+			$(this.searchSubmit).prop('disabled', true);
+		}
+	}
 
 	renderCallback () {
-		return <div class="wds-global-navigation" onClick={this.onClick}>
+		return <div class="wds-global-navigation" onClick={this.onClick} ref={(element) => {this.root = element;}}>
 			{this.style()}
 			<div class="wds-global-navigation__content-bar">
 				{this.logo()}
@@ -149,15 +205,15 @@ customElements.define('global-navigation', class extends skate.Component {
 						<div class="wds-global-navigation__search-input-wrapper wds-dropdown ">
 							<label class="wds-dropdown__toggle wds-global-navigation__search-label">
 								<svg class="wds-icon wds-icon-small wds-global-navigation__search-label-icon" width="24" height="24" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><g fill-rule="evenodd"><path d="M21.747 20.524l-4.872-4.871a.864.864 0 1 0-1.222 1.222l4.871 4.872a.864.864 0 1 0 1.223-1.223z"/><path d="M3.848 10.763a6.915 6.915 0 0 1 6.915-6.915 6.915 6.915 0 0 1 6.915 6.915 6.915 6.915 0 0 1-6.915 6.915 6.915 6.915 0 0 1-6.915-6.915zm-1.729 0a8.643 8.643 0 0 0 8.644 8.644 8.643 8.643 0 0 0 8.644-8.644 8.643 8.643 0 0 0-8.644-8.644 8.643 8.643 0 0 0-8.644 8.644z"/></g></svg>
-								<input type="search" name="query" placeholder="Search" autocomplete="off" class="wds-global-navigation__search-input"/>
+								<input type="search" name="query" placeholder="Search" autocomplete="off" class="wds-global-navigation__search-input" ref={(el) => { this.searchInput = el; }} onFocus={this.activateSearch.bind(this)} onKeydown={this.searchKeydown.bind(this)} onInput={this.searchOnInput.bind(this)}/>
 							</label>
-							<button class="wds-button wds-is-text wds-global-navigation__search-close" type="reset" data-ember-action="690">
+							<button class="wds-button wds-is-text wds-global-navigation__search-close" type="reset" data-ember-action="690" onClick={this.deactivateSearch.bind(this)}>
 								<svg class="wds-icon wds-icon-small wds-global-navigation__search-close-icon" width="24" height="24" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M19.707 4.293a.999.999 0 0 0-1.414 0L12 10.586 5.707 4.293a.999.999 0 1 0-1.414 1.414L10.586 12l-6.293 6.293a.999.999 0 1 0 1.414 1.414L12 13.414l6.293 6.293a.997.997 0 0 0 1.414 0 .999.999 0 0 0 0-1.414L13.414 12l6.293-6.293a.999.999 0 0 0 0-1.414" fill-rule="evenodd"/></svg>
 							</button>
 							<div class="wds-dropdown__content wds-global-navigation__search-suggestions">
 								<ul class="wds-has-ellipsis wds-is-linked wds-list"></ul>
 							</div>
-							<button class="wds-button wds-global-navigation__search-submit" type="button" disabled>
+							<button class="wds-button wds-global-navigation__search-submit" type="button" disabled ref={(el) => { this.searchSubmit = el; }}>
 								<svg class="wds-icon wds-icon-small wds-global-navigation__search-submit-icon" width="24" height="24" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M22.999 12a1 1 0 0 0-1-1H4.413l5.293-5.293a.999.999 0 1 0-1.414-1.414l-7 7a1 1 0 0 0 0 1.415l7 7a.997.997 0 0 0 1.414 0 .999.999 0 0 0 0-1.415L4.413 13h17.586a1 1 0 0 0 1-1" fill-rule="evenodd"/></svg>
 							</button>
 						</div>
