@@ -45,15 +45,71 @@ customElements.define('global-navigation', class extends skate.Component {
 		return this.model.fandom_overview.links.map((link) => this.linkBranded(link));
 	}
 
-	linkBranded(model) {
-		let classes = ['wds-global-navigation__link'];
-
-		classes.push(`wds-is-${model.brand}`);
-
-		return <a class={classes.join(' ')}>{this.i18n(model.title.key)}</a>;
+	links(model, type) {
+		if (model.header) {
+			return this.dropdown(model, type);
+		} else {
+			return model.links.map((link) => this.link(link));
+		}
 	}
 
-	globalNavOnclick(event) {
+	link(model) {
+		return <a class="wds-global-navigation__link">{this.i18n(model.title.key)}</a>;
+	}
+
+	linkBranded(model) {
+		let classNames = ['wds-global-navigation__link'];
+
+		classNames.push(`wds-is-${model.brand}`);
+
+		return <a class={classNames.join(' ')}>{this.i18n(model.title.key)}</a>;
+	}
+
+	dropdownToggleTitle(model) {
+		if (model.header.type === 'avatar') {
+			return model.header.username.value;
+		}
+	}
+
+	dropdownToggleHeader(model) {
+		if (model.header.type === 'avatar') {
+			return <img class="wds-avatar" src={model.header.url} alt={model.header.username.value} />;
+		} else {
+			return <span>{this.i18n(model.header.title.key)}</span>;
+		}
+	}
+
+	// TODO support rightAligned
+	dropdown(model, type, rightAligned = false) {
+		const classNames = [
+				`wds-global-navigation__wikis-menu`,
+				`wds-dropdown`,
+				`wds-global-navigation__${type}`
+			],
+			links = model.links.map((link) => {
+				if (link.type === 'link-authentication') {
+					// TODO
+				} else {
+					return <li>
+						<a class="wds-global-navigation__dropdown-link">{this.i18n(link.title.key)}</a>
+					</li>;
+				}
+			});
+
+		return <div class={classNames.join(' ')}>
+			<div class="wds-global-navigation__dropdown-toggle wds-dropdown__toggle" title={this.dropdownToggleTitle(model)}>
+				{this.dropdownToggleHeader(model)}
+				<svg class="wds-icon wds-icon-tiny wds-dropdown__toggle-chevron" width="12" height="12" viewBox="0 0 12 12" xmlns="http://www.w3.org/2000/svg"><path d="M1 3h10L6 9z"/></svg>
+			</div>
+			<div class="wds-global-navigation__dropdown-content wds-dropdown__content">
+				<ul class="wds-is-linked wds-list">
+					{links}
+				</ul>
+			</div>
+		</div>;
+	}
+
+	onClick(event) {
 		const $eventTarget = $(event.target),
 			$clickedToggle = $eventTarget.closest('.wds-dropdown__toggle'),
 			$clickedDropdown = $eventTarget.closest('.wds-dropdown');
@@ -77,31 +133,13 @@ customElements.define('global-navigation', class extends skate.Component {
 	};
 
 	renderCallback () {
-		return <div class="wds-global-navigation" onClick={ this.globalNavOnclick }>
+		return <div class="wds-global-navigation" onClick={this.onClick}>
 			{this.style()}
 			<div class="wds-global-navigation__content-bar">
 				{this.logo()}
 				<div class="wds-global-navigation__links-and-search">
 					{this.fandomOverviewLinks()}
-					<div class="wds-global-navigation__wikis-menu wds-dropdown">
-						<div class="wds-global-navigation__dropdown-toggle wds-dropdown__toggle">
-							<span>Wikis</span>
-							<svg class="wds-icon wds-icon-tiny wds-dropdown__toggle-chevron" width="12" height="12" viewBox="0 0 12 12" xmlns="http://www.w3.org/2000/svg"><path d="M1 3h10L6 9z"/></svg>
-						</div>
-						<div class="wds-global-navigation__dropdown-content wds-dropdown__content">
-							<ul class="wds-is-linked wds-list">
-								<li>
-									<a class="wds-global-navigation__dropdown-link">Explore Wikis</a>
-								</li>
-								<li>
-									<a class="wds-global-navigation__dropdown-link">Community Central</a>
-								</li>
-								<li>
-									<a class="wds-global-navigation__dropdown-link">Fandom University</a>
-								</li>
-							</ul>
-						</div>
-					</div>
+					{this.links(this.model.wikis, 'wikis-menu')}
 					<form class="wds-global-navigation__search">
 						<div class="wds-global-navigation__search-input-wrapper wds-dropdown ">
 							<label class="wds-dropdown__toggle wds-global-navigation__search-label">
