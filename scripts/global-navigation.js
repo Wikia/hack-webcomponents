@@ -91,7 +91,7 @@ customElements.define('global-navigation', class extends skate.Component {
 	}
 
 	link(model) {
-		return <a class="wds-global-navigation__link">{this.i18n(model.title.key)}</a>;
+		return <a class="wds-global-navigation__link" href={model.href}>{this.i18n(model.title.key)}</a>;
 	}
 
 	linkAuthentication(model) {
@@ -120,7 +120,7 @@ customElements.define('global-navigation', class extends skate.Component {
 
 		classNames.push(`wds-is-${model.brand}`);
 
-		return <a class={classNames.join(' ')}>{this.i18n(model.title.key)}</a>;
+		return <a class={classNames.join(' ')} href={model.href}>{this.i18n(model.title.key)}</a>;
 	}
 
 	dropdown(model, type) {
@@ -133,7 +133,7 @@ customElements.define('global-navigation', class extends skate.Component {
 					return <li>{this.linkAuthentication(link)}</li>;
 				} else {
 					return <li>
-						<a class="wds-global-navigation__dropdown-link">{this.i18n(link.title.key)}</a>
+						<a class="wds-global-navigation__dropdown-link" href={link.href}>{this.i18n(link.title.key)}</a>
 					</li>;
 				}
 			});
