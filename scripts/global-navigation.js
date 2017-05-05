@@ -269,7 +269,7 @@ customElements.define('global-navigation', class extends skate.Component {
 				<div class="wds-global-navigation__links-and-search">
 					{this.fandomOverviewLinks()}
 					{this.links(this.model.wikis, 'wikis-menu')}
-					<form class="wds-global-navigation__search">
+					<form class="wds-global-navigation__search" action={this.model.search.module.results.url}>
 						<div class="wds-global-navigation__search-input-wrapper wds-dropdown ">
 							<label class="wds-dropdown__toggle wds-global-navigation__search-label">
 								<svg class="wds-icon wds-icon-small wds-global-navigation__search-label-icon" width="24" height="24" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><g fill-rule="evenodd"><path d="M21.747 20.524l-4.872-4.871a.864.864 0 1 0-1.222 1.222l4.871 4.872a.864.864 0 1 0 1.223-1.223z"/><path d="M3.848 10.763a6.915 6.915 0 0 1 6.915-6.915 6.915 6.915 0 0 1 6.915 6.915 6.915 6.915 0 0 1-6.915 6.915 6.915 6.915 0 0 1-6.915-6.915zm-1.729 0a8.643 8.643 0 0 0 8.644 8.644 8.643 8.643 0 0 0 8.644-8.644 8.643 8.643 0 0 0-8.644-8.644 8.643 8.643 0 0 0-8.644 8.644z"/></g></svg>
