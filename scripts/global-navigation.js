@@ -106,13 +106,9 @@ customElements.define('global-navigation', class extends skate.Component {
 			'';
 		let link;
 
-		if (model.title.key === 'global-navigation-user-sign-out') {
-			link = <div class={classNames}>TODO: signout</div>;
-		} else {
-			link = <a href={model.href} rel="nofollow" id={model.title.key} class={classNames}>{this.i18n(model.title.key)}</a>;
-		}
+		link = <a href={model.href} rel="nofollow" id={model.title.key} class={classNames}>{this.i18n(model.title.key)}</a>;
 
-		return <div>{subtitle}{link}</div>;
+		return <li>{subtitle}{link}</li>;
 	}
 
 	linkBranded(model) {
@@ -129,13 +125,9 @@ customElements.define('global-navigation', class extends skate.Component {
 				`wds-global-navigation__${type}`
 			],
 			links = model.links.map((link) => {
-				if (link.type === 'link-authentication') {
-					return <li>{this.linkAuthentication(link)}</li>;
-				} else {
-					return <li>
-						<a class="wds-global-navigation__dropdown-link" href={link.href}>{this.i18n(link.title.key)}</a>
-					</li>;
-				}
+				return <li>
+					<a class="wds-global-navigation__dropdown-link" href={link.href}>{this.i18n(link.title.key)}</a>
+				</li>;
 			});
 
 		return <div class={classNames.join(' ')}>
