@@ -1,4 +1,8 @@
 <link rel="stylesheet" href="http://wikiadesignsystem.com/assets/design-system.css">
 <script src="https://code.jquery.com/jquery-3.2.1.min.js"></script>
 <script src="https://cdn.rawgit.com/webcomponents/custom-elements/1a675763/src/native-shim.js"></script>
-<script src="dist/global-navigation.js"></script>
+<script data-main="dist/global-navigation" src="require.js"></script>
+<script>require(['dist/global-navigation'], function () {
+	require(['global-navigation'], function (dupa) {
+	});
+});</script>
