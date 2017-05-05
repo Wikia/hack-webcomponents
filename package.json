@@ -4,7 +4,7 @@
   "description": "",
   "main": "gulpfile.js",
   "dependencies": {
-    "skatejs": "^4.6.7",
+    "skatejs": "github:rogatty/skatejs#master",
     "skatejs-web-components": "0.0.1"
   },
   "devDependencies": {
