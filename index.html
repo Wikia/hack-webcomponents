@@ -1,18 +1,7 @@
 <html>
 <head>
 	<title>Design System web components</title>
-	<script>
-		(function() {
-			if ('import' in document.createElement('link')) {
-				// platform is good!
-			} else {
-				// polyfill the platform!
-				var e = document.createElement('script');
-				e.src = 'https://cdn.rawgit.com/webcomponents/webcomponentsjs/390737cf/webcomponents-hi.js';
-				document.head.appendChild(e);
-			}
-		})();
-	</script>
+	<script src="https://cdn.rawgit.com/webcomponents/webcomponentsjs/390737cf/webcomponents-loader.js"></script>
 	<link rel="import" href="global-navigation.html">
 	<style type="text/css">
 		global-navigation {

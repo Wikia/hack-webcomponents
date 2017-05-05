@@ -1,4 +1,4 @@
-import 'skatejs-web-components';
+// import 'skatejs-web-components';
 import * as skate from 'skatejs';
 
 customElements.define('global-navigation', class extends skate.Component {
