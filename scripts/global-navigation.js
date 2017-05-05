@@ -43,7 +43,7 @@ customElements.define('global-navigation', class extends skate.Component {
 	}
 
 	fandomOverviewLinks() {
-		if (!this.model.fandom_overview.links) {
+		if (!this.model.fandom_overview || !this.model.fandom_overview.links) {
 			return;
 		}
 
