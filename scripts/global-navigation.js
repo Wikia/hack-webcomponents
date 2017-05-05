@@ -12,7 +12,8 @@ customElements.define('global-navigation', class extends skate.Component {
 				serialize(value) {
 					return JSON.stringify(value);
 				}
-			}
+			},
+			isDropdownOpen: skate.prop.boolean({attribute: true})
 		};
 	}
 
@@ -218,18 +219,33 @@ customElements.define('global-navigation', class extends skate.Component {
 			$clickedDropdown.toggleClass('wds-is-active');
 
 			if ($clickedDropdown.hasClass('wds-is-active')) {
-				$clickedDropdown.trigger('wds-dropdown-open');
+				skate.emit($eventTarget.get(0), 'wdsDropdownOpen');
+			} else {
+				skate.emit($eventTarget.get(0), 'wdsDropdownClose');
 			}
 		}
 
-		$(this).find('.wds-dropdown.wds-is-active').not($clickedDropdown)
-			.removeClass('wds-is-active')
-			.trigger('wds-dropdown-close');
+		this.closeDropdowns($(this.root).find('.wds-dropdown.wds-is-active').not($clickedDropdown));
 
-		$(this).find('.wds-global-navigation').toggleClass(
-			'wds-dropdown-is-open',
-			Boolean($clickedDropdown.hasClass('wds-is-active'))
-		);
+		this.isDropdownOpen = $clickedDropdown.hasClass('wds-is-active');
+	}
+
+	updatedCallback (previousProps) {
+		// The 'previousProps' will be undefined if it is the initial render.
+		if (!previousProps) {
+			return true;
+		}
+
+		if (!this.isDropdownOpen) {
+			this.closeDropdowns($(this.root).find('.wds-dropdown.wds-is-active'));
+		}
+	}
+
+	closeDropdowns(openDropdowns) {
+		openDropdowns.removeClass('wds-is-active');
+		openDropdowns.each(function () {
+			skate.emit(this, 'wdsDropdownClose');
+		});
 	}
 
 	renderedCallback () {
@@ -243,7 +259,7 @@ customElements.define('global-navigation', class extends skate.Component {
 	}
 
 	renderCallback () {
-		return <div class="wds-global-navigation" onClick={this.onClick} ref={(element) => {this.root = element;}}>
+		return <div class="wds-global-navigation" onClick={this.onClick.bind(this)} ref={(element) => {this.root = element;}}>
 			{this.style()}
 			<div class="wds-global-navigation__content-bar">
 				{this.logo()}
