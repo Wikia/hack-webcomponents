@@ -13,7 +13,8 @@ customElements.define('global-navigation', class extends skate.Component {
 					return JSON.stringify(value);
 				}
 			},
-			isDropdownOpen: skate.prop.boolean({attribute: true})
+			isDropdownOpen: skate.prop.boolean({attribute: true}),
+			isSearchActive: skate.prop.boolean({attribute: true})
 		};
 	}
 
@@ -171,6 +172,7 @@ customElements.define('global-navigation', class extends skate.Component {
 		if (!$globalNav.hasClass(activeSearchClass)) {
 			$globalNav.addClass(activeSearchClass);
 			$searchInput.attr('placeholder', $searchInput.data('active-placeholder'));
+			this.isSearchActive = true;
 
 			/**
 			 * [bug fix]: On Firefox click is not triggered when placeholder text is changed
@@ -189,6 +191,7 @@ customElements.define('global-navigation', class extends skate.Component {
 		$searchSubmit.prop('disabled', true);
 		$globalNav.removeClass(activeSearchClass);
 		$searchInput.attr('placeholder', placeholderText).val('');
+		this.isSearchActive = false;
 	}
 
 	searchKeydown(event) {
